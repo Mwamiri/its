@@ -38,8 +38,8 @@ class ItsBilling extends ItsBase {
         if ($r = $this->needAdmin()) return $r;
         $month = $this->month();
         $fh = fopen('php://temp', 'w+');
-        fputcsv($fh, ['Client', 'Retainer hours', 'Rate', 'Billable hours', 'Total hours', 'Overage hours', 'Amount due']);
-        foreach ($this->rows($month) as $r) fputcsv($fh, [ltrim($r['name'], "=+-@\t\r"), $r['retainer'], $r['rate'], $r['billable_h'], $r['total_h'], $r['over_h'], $r['amount']]);
+        fputcsv($fh, ['Client', 'Retainer hours', 'Rate', 'Billable hours', 'Total hours', 'Overage hours', 'Amount due'], ',', '"', '');
+        foreach ($this->rows($month) as $r) fputcsv($fh, [ltrim($r['name'], "=+-@\t\r"), $r['retainer'], $r['rate'], $r['billable_h'], $r['total_h'], $r['over_h'], $r['amount']], ',', '"', '');
         rewind($fh);
         $csv = stream_get_contents($fh);
         fclose($fh);
