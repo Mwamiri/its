@@ -10,7 +10,7 @@
 <div class="card"><h3><?= $edit ? 'Edit' : 'New' ?> Quote</h3>
 <form method="post" action="<?= base_url('its-quotes-save/' . ($edit['id'] ?? '')) ?>"><?= csrf_field() ?>
 <?php if (!$edit && $templates) { ?><label for="quote-template">Start from a template</label><select id="quote-template"><option value="">Choose a starting point</option><?php foreach ($templates as $template) { ?><option value="<?= esc($template['id']) ?>"><?= esc($template['name']) ?></option><?php } ?></select><?php } ?>
-<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?? $c->id ?>" <?= ($edit && $edit['client_id'] == ($c['id'] ?? $c->id)) ? 'selected' : '' ?>><?= esc($c['name'] ?? $c->name) ?></option><?php } ?></select>
+<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>" <?= ($edit && $edit['client_id'] == ($c['id'])) ? 'selected' : '' ?>><?= esc($c['name']) ?></option><?php } ?></select>
 <label>Subject</label><input id="quote-subject" name="subject" value="<?= esc($edit['subject'] ?? '') ?>" required>
 <label>Notes</label><textarea id="quote-notes" name="notes"><?= esc($edit['notes'] ?? '') ?></textarea>
 <h4>Lines</h4><div id="lines">

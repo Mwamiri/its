@@ -13,6 +13,7 @@ class ItsClients extends ItsBase {
     public function save($id = null) {
         if ($r = $this->needLogin()) return $r;
         $m = new ClientModel();
+        if (trim((string) $this->request->getPost('name')) === '') return redirect()->back()->with('err', 'Client name is required.');
         $data = ['name' => $this->request->getPost('name'), 'contact_person' => $this->request->getPost('contact_person'), 'phone' => $this->request->getPost('phone'), 'email' => $this->request->getPost('email'), 'address' => $this->request->getPost('address'), 'notes' => $this->request->getPost('notes')];
         $file = $this->request->getFile('logo');
         if ($file && $file->isValid() && !$file->hasMoved()) $data['logo_path'] = $this->saveUpload($file, 'clients');

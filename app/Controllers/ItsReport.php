@@ -13,6 +13,7 @@ class ItsReport extends ItsBase {
     public function sign($id) {
         if ($r = $this->needLogin()) return $r;
         $ticket = $this->db->table('tickets')->select('tickets.*, clients.name AS client_name, clients.email')->join('clients', 'clients.id = tickets.client_id')->where('tickets.id', $id)->get()->getRowArray();
+        if (!$ticket) return redirect()->to(base_url('its-tickets'));
         $data = $this->request->getPost('signature_data') ?? '';
         if (preg_match('/^data:image\/(png|jpeg);base64,/', $data, $m) && $this->request->getPost('signed_by_name')) {
             $bin = base64_decode(substr($data, strpos($data, ',') + 1), true);

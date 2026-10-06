@@ -68,7 +68,8 @@ class ItsBase extends BaseController {
     protected function homeFor(?array $u): string { return base_url(($u['role'] ?? '') === 'client' ? 'its-portal' : 'its-dashboard'); }
     protected function needAdmin() { $u = $this->user(); if (!$u || $u['role'] !== 'admin') return redirect()->to(base_url('its-dashboard')); return null; }
     protected function setting(string $k, ?string $d = null): ?string { return SettingModel::get($k, $d); }
-    protected function audit(string $a, string $m = '', string $d = ''): void {
+    protected function audit(string $a, string $m = '', ?string $d = ''): void {
+        $d = (string) $d;
         (new AuditModel())->insert(['user_id' => $this->user()['id'] ?? null, 'action' => $a, 'module' => $m, 'details' => $d, 'ip_address' => $this->request->getIPAddress()]);
     }
     protected function seq(string $name, string $prefix): string {

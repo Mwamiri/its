@@ -9,7 +9,7 @@
 </table></div>
 <div class="card"><h3><?= $edit ? 'Edit' : 'Add' ?> Asset</h3>
 <form method="post" action="<?= base_url('its-assets-save/' . ($edit['id'] ?? '')) ?>"><?= csrf_field() ?>
-<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?? $c->id ?>" <?= ($edit && ($edit['client_id'] == ($c['id'] ?? $c->id))) ? 'selected' : '' ?>><?= esc($c['name'] ?? $c->name) ?></option><?php } ?></select>
+<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>" <?= ($edit && ($edit['client_id'] == ($c['id']))) ? 'selected' : '' ?>><?= esc($c['name']) ?></option><?php } ?></select>
 <label>Name</label><input name="name" value="<?= esc($edit['name'] ?? '') ?>" required>
 <label>Type</label><input name="type" value="<?= esc($edit['type'] ?? '') ?>">
 <label>Brand</label><input name="brand" value="<?= esc($edit['brand'] ?? '') ?>">

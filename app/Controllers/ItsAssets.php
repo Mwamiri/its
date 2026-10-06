@@ -13,6 +13,7 @@ class ItsAssets extends ItsBase {
     public function save($id = null) {
         if ($r = $this->needLogin()) return $r;
         $m = new AssetModel();
+        if (trim((string) $this->request->getPost('name')) === '' || !(new ClientModel())->find((int) $this->request->getPost('client_id'))) return redirect()->back()->with('err', 'Asset name and a valid client are required.');
         $data = ['client_id' => $this->request->getPost('client_id'), 'name' => $this->request->getPost('name'), 'type' => $this->request->getPost('type'), 'brand' => $this->request->getPost('brand'), 'model' => $this->request->getPost('model'), 'serial_number' => $this->request->getPost('serial_number'), 'location' => $this->request->getPost('location'), 'status' => $this->request->getPost('status') ?: 'active', 'notes' => $this->request->getPost('notes')];
         foreach (['hostname' => 100, 'cpu' => 120, 'ram' => 60, 'storage' => 120, 'os' => 80] as $k => $len) $data[$k] = mb_substr(trim((string) $this->request->getPost($k)), 0, $len) ?: null;
         foreach (['purchase_date', 'warranty_until'] as $k) { $v = (string) $this->request->getPost($k); $data[$k] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null; }

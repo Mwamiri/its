@@ -12,7 +12,7 @@
 <div class="card"><h3>New Ticket</h3>
 <form method="post" action="<?= base_url('its-tickets') ?>"><?= csrf_field() ?>
 <?php if ($templates) { ?><label for="ticket-template">Start from a template</label><select id="ticket-template"><option value="">Choose a starting point</option><?php foreach ($templates as $template) { ?><option value="<?= esc($template['id']) ?>"><?= esc($template['name']) ?></option><?php } ?></select><?php } ?>
-<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?? $c->id ?>"><?= esc($c['name'] ?? $c->name) ?></option><?php } ?></select>
+<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>"><?= esc($c['name']) ?></option><?php } ?></select>
 <label>Subject</label><input id="ticket-subject" name="subject" required>
 <label>Description</label><textarea id="ticket-description" name="description"></textarea>
 <label>Priority</label><select name="priority"><?php foreach (['low','medium','high','urgent'] as $p) { ?><option><?= $p ?></option><?php } ?></select>

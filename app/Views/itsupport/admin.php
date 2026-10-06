@@ -84,7 +84,7 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 </div>
 <?php } elseif ($tab === 'maintenance') { ?>
 <div class="card"><h3>Add Schedule</h3><form method="post" action="<?= base_url('its-admin-schedules') ?>"><?= csrf_field() ?>
-<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?? $c->id ?>"><?= esc($c['name'] ?? $c->name) ?></option><?php } ?></select>
+<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>"><?= esc($c['name']) ?></option><?php } ?></select>
 <label>Name</label><input name="name" required><label>Description</label><textarea name="description"></textarea>
 <label>Interval days</label><input type="number" name="interval_days" value="30" min="1">
 <button class="btn">Add</button></form>

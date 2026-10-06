@@ -17,6 +17,7 @@ class ItsQuotes extends ItsBase {
     public function save($id = null) {
         if ($r = $this->needLogin()) return $r;
         $qm = new QuoteModel(); $im = new QuoteItemModel();
+        if (!(new ClientModel())->find((int) $this->request->getPost('client_id'))) return redirect()->back()->with('err', 'Select a valid client.');
         $descs = $this->request->getPost('item_desc') ?? []; $qtys = $this->request->getPost('item_qty') ?? []; $units = $this->request->getPost('item_unit') ?? [];
         $total = 0;
         for ($i = 0; $i < count($descs); $i++) { if (trim($descs[$i]) === '') continue; $total += (float) ($qtys[$i] ?? 0) * (float) ($units[$i] ?? 0); }
@@ -34,6 +35,7 @@ class ItsQuotes extends ItsBase {
     public function send($id) {
         if ($r = $this->needLogin()) return $r;
         $q = (new QuoteModel())->find($id);
+        if (!$q) return redirect()->to(base_url('its-quotes'));
         $client = $this->db->table('clients')->where('id', $q['client_id'])->get()->getRow();
         if ($client && $client->email) {
             $rows = '';
