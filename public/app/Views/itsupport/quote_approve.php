@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote</title>
+<style>body{margin:0;font-family:Arial;background:#0f172a;color:#fff;padding:20px}.card{background:#1e293b;border-radius:16px;padding:24px;max-width:600px;margin:0 auto}input,button{padding:12px;border-radius:10px;border:0;margin:6px 0;width:100%}button.ok{background:#16a34a;color:#fff}button.no{background:#dc2626;color:#fff}table{width:100%;border-collapse:collapse}th,td{border:1px solid #334155;padding:8px;font-size:14px;text-align:left}</style></head>
+<body><div class="card"><h1><?= esc($quote['quote_number']) ?></h1><p><?= esc($quote['subject']) ?> - Total <?= number_format((float)$quote['total'],2) ?></p>
+<table><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr><?php foreach ($items as $i) { ?><tr><td><?= esc($i['description']) ?></td><td><?= $i['quantity'] ?></td><td><?= number_format((float)$i['unit_cost'],2) ?></td><td><?= number_format((float)$i['total_cost'],2) ?></td></tr><?php } ?></table>
+<?php if ($done) { ?><p style="color:#86efac;">Recorded. Thank you.</p><?php } elseif (in_array($quote['status'], ['draft','sent'])) { ?>
+<form method="post"><?= csrf_field() ?><label>Your Name</label><input name="name" required><button class="ok" name="action" value="approve">Approve</button><button class="no" name="action" value="reject">Reject</button></form>
+<?php } else { ?><p>Status: <?= esc($quote['status']) ?></p><?php } ?>
+</div></body></html>

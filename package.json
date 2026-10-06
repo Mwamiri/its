@@ -1,0 +1,11 @@
+{
+  "name": "itsupportz-assets",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.css -o public/assets/tailwind.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i assets/tailwind.css -o public/assets/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

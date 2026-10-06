@@ -1,0 +1,10 @@
+/.env
+/node_modules/
+/vendor/
+/writable/*
+!/writable/.htaccess
+!/writable/index.html
+.DS_Store
+Thumbs.db
+/public/uploads/*
+!/public/uploads/.htaccess
