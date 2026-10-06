@@ -1,61 +1,69 @@
-# CodeIgniter 4 Framework
+# Mwamiri IT Support
 
-## What is CodeIgniter?
+A self-hosted IT support and field-service platform built on **CodeIgniter 4.7** (PHP 8.2+, MySQL/MariaDB). It manages clients, equipment, tickets and quotes, with a client portal, a Kanban board, network monitoring, billing and enterprise security. Current version: **2.1.0**.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+## Features
 
-This repository holds the distributable version of the framework.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+| Area | What it does |
+|---|---|
+| **Tickets** | Create and track tickets with priority, type, assignee and SLA due dates. Add tasks (diagnosis, action, parts and labour cost), photos, time entries and canned replies. Produces a signed service report. |
+| **Kanban board** | Drag tickets between status columns. Overdue tickets are flagged. |
+| **Clients and quotes** | Client records with logos and retainer hours. Quotes with line items, emailed to the client for approval through a secure link. |
+| **Assets and machine service log** | Registers machines with CPU, RAM, storage, OS, purchase and warranty dates. Log repairs, new builds, and RAM/SSD/CPU/OS upgrades with before/after specs, costs and an optional ticket link. Specs update automatically. QR code per asset. |
+| **Client portal** | Clients see only their own tickets, report issues, reply, rate the service and read help articles. |
+| **Network and credentials** | Device and camera inventory with TCP availability checks, and an AES-encrypted credential vault with an audit trail on reveals. |
+| **Reports and forms** | Report builder with CSV export, custom forms with submissions, and a knowledge base (internal and public articles). |
+| **Billing** | Monthly retainer vs billable hours, overage amount, CSV export and an iCal feed. |
+| **Security** | Role-based permissions (admin, manager, technician, client), TOTP two-factor authentication with recovery codes, login lockout, password policy, audit log and CSRF protection. |
+| **Integrations** | REST API (`/api/v1/tickets`, `clients`, `assets`) with API keys, and webhooks. |
+| **Operations** | Scheduled backups, system health page, integrity-checked updater, mail log and cron endpoints. |
+| **Interface** | Left sidebar with top bar, notification bell (overdue tickets and offline devices), Ctrl+K search, dark mode, text-size controls, mobile bottom tab bar, and six languages (English, French, Spanish, Kiswahili, Arabic, Chinese). |
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+## System at a glance
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+- 23 controllers, 122 routes, 12 migrations and 30 database tables.
+- Main tables: `tickets`, `tasks`, `clients`, `assets`, `asset_events`, `quotes`, `network_devices`, `vault_credentials`, `kb_articles`, `users`, `role_permissions`, `api_keys`, `webhooks`, `audit_log`.
+- Libraries: `Perm`, `Sla`, `Totp`, `TicketService`, `Webhooks`, `Backup`, `SystemUpdater`, `NetworkMonitor`, `CredentialVault`, `MailLib`, `ReportLib`, `Qr`.
+- Tailwind CSS (prefix `tw-`) compiled to `public/assets/tailwind.css`.
 
-## Important Change with index.php
+## Requirements
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+PHP 8.2+ with `intl`, `mbstring`, `mysqli`, `curl`, `zip`; MySQL 5.7+ or MariaDB 10.4+; Apache or Nginx; Node.js only if you change styles.
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+## Install
 
-**Please** read the user guide for a better explanation of how CI4 works!
+```bash
+git clone https://github.com/Mwamiri/its.git
+cd its
+cp env .env                 # then edit .env
+```
 
-## Repository Management
+In `.env` set `app.baseURL`, the `database.default.*` values, and `encryption.key` (generate with `php spark key:generate`). Then:
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+```bash
+php spark migrate
+```
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+The framework is bundled in `system/`, so no Composer step is needed. Import `itsupport_schema.sql` first on a fresh database if migrations alone are not enough, then open `/its-install` once to create the first admin account. Point the web root at `public/`. See [DEPLOY.md](DEPLOY.md) for cPanel and cron setup.
 
-## Contributing
+## Commands
 
-We welcome contributions from the community.
+```bash
+php spark migrate           # apply database migrations
+php spark backup:run [keep] # database backup, keeping the last N
+npm install && npm run build:css   # rebuild Tailwind after adding classes
+```
 
-Please read the [*Contributing to CodeIgniter*](https://github.com/codeigniter4/CodeIgniter4/blob/develop/CONTRIBUTING.md) section in the development repository.
+Cron endpoints (use your cron token, shown in Admin): `its-cron-maintenance`, `its-cron-weekly`, `its-cron-monthly`, `its-cron-device-monitor`.
 
-## Server Requirements
+## Security notes
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+Set `CI_ENVIRONMENT = production` in `.env` on live servers. Keep `.env`, `writable/` and the cron token private. After manual file changes, record a new integrity baseline in **Updates** before using the updater. See [SECURITY.md](SECURITY.md).
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+## Help
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+Open **Help** inside the app for a searchable guide, or **Features** for a feature overview.
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+## License
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+MIT. Built on [CodeIgniter 4](https://codeigniter.com).
