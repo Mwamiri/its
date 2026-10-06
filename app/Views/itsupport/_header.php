@@ -151,6 +151,28 @@ nav[aria-label="Main navigation"] details.is-active>summary{background:transpare
 @media(max-width:999px){.appbar{display:none}.tabbar{position:fixed;inset-inline:0;bottom:0;z-index:25;display:flex;background:var(--paper);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}.tabbar a,.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:0;background:transparent;color:var(--muted);font:600 11px sans-serif;text-decoration:none}.tabbar span{font-size:18px}.tabbar [aria-current=page]{color:var(--brand-dark)}body:has(.tabbar){padding-bottom:62px}}
 @media(min-width:1000px){.tabbar{display:none}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.form-grid{display:grid;grid-template-columns:1fr;gap:2px 16px;align-items:start}
+@media(min-width:760px){.form-grid{grid-template-columns:1fr 1fr}}
+.form-grid>.field.wide,.form-grid>:not(.field){grid-column:1/-1}
+.field{min-width:0;display:flex;flex-direction:column}
+.field>label{margin-bottom:0}
+.field>input,.field>select,.field>textarea{margin:5px 0 4px}
+.field .hint{font-size:12px;color:var(--muted);margin:0 0 10px;min-height:0}
+.field>input,.field>select,.field>textarea{margin-bottom:14px}
+label:has(+ :is(input,select,textarea)[required])::after,.field:has(:is(input,select,textarea)[required])>label::after{content:" *";color:#dc2626}
+input::placeholder,textarea::placeholder{color:#9aa8ba}
+:is(input,select,textarea):user-invalid{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+:is(input,select,textarea):user-valid:not(:placeholder-shown){border-color:#22a06b}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2368788e' stroke-width='2'%3E%3Cpath d='m2 4 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-inline-end:32px}
+html[dir=rtl] select{background-position:left 12px center}
+html[data-mode=dark] input,html[data-mode=dark] select,html[data-mode=dark] textarea{background:#101a2b;border-color:#334155;color:var(--ink)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 14px}.seg input{position:absolute;opacity:0;pointer-events:none}.seg label{margin:0;padding:8px 14px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:13px;background:var(--paper);transition:all .15s;text-transform:capitalize}
+.seg input:checked+label{background:var(--brand);border-color:var(--brand);color:#fff}.seg input:focus-visible+label{outline:2px solid var(--brand);outline-offset:2px}
+.seg input[value=urgent]:checked+label{background:#dc2626;border-color:#dc2626}.seg input[value=high]:checked+label{background:#ea580c;border-color:#ea580c}
+.form-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line);margin-top:4px}
+.char-count{font-size:11px;color:var(--muted);text-align:end;margin:-10px 0 10px}
+button[data-busy]{opacity:.7;pointer-events:none}
+.card>h3:first-child{margin-top:0}#ui-language{width:auto;min-width:130px;margin:0;padding-block:7px}.ui-toolbar select{margin:0}
 </style></head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <?php

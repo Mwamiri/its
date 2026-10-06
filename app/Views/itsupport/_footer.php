@@ -113,4 +113,33 @@ fetch('<?= base_url('its-search') ?>?q='+encodeURIComponent(q),{credentials:'sam
 if(!rows.length){l.textContent='No results.';return}rows.forEach(function(x){var li=document.createElement('li'),a=document.createElement('a');a.href=x.url;a.textContent=x.type+': '+x.label;a.style.display='block';a.style.padding='7px 4px';li.appendChild(a);l.appendChild(li)})})},200)});})();
 </script>
 <?php } ?>
+<script>
+(function(){
+var CTRL='INPUT,SELECT,TEXTAREA';
+function isCtrl(e){return e&&CTRL.indexOf(e.tagName)>-1&&e.type!=='hidden'&&e.type!=='checkbox'&&e.type!=='radio'&&e.type!=='submit'}
+document.querySelectorAll('main form[method="post" i]').forEach(function(f){
+ if(f.dataset.plain!==undefined||f.closest('.seg')||/login|install|2fa|verify/.test(f.getAttribute('action')||'x'))return;
+ var kids=[].slice.call(f.children),pairs=0;
+ kids.forEach(function(k,i){if(k.tagName==='LABEL'&&isCtrl(kids[i+1]))pairs++});
+ if(pairs<3)return;
+ var out=[],i=0;
+ while(i<kids.length){var k=kids[i],n=kids[i+1];
+  if(k.tagName==='LABEL'&&isCtrl(n)&&!(k.querySelector('input'))){
+   var w=document.createElement('div');w.className='field'+(n.tagName==='TEXTAREA'||n.type==='file'||/detail|note|desc|message|body|reply|address/i.test(n.name||n.id||'')?' wide':'');
+   f.insertBefore(w,k);w.appendChild(k);w.appendChild(n);
+   if(n.tagName==='TEXTAREA'&&n.maxLength>0&&n.maxLength<20000){var c=document.createElement('div');c.className='char-count';w.appendChild(c);var up=function(t,cc){return function(){cc.textContent=t.value.length+' / '+t.maxLength}}(n,c);n.addEventListener('input',up);up()}
+   i+=2;
+  } else i++;
+ }
+ f.classList.add('form-grid');
+ var b=f.querySelector(':scope>button:not([type=button]),:scope>button.btn');
+ if(b){var a=document.createElement('div');a.className='form-actions';f.appendChild(a);a.appendChild(b)}
+});
+document.querySelectorAll('textarea').forEach(function(t){var r=function(){t.style.height='auto';t.style.height=Math.min(t.scrollHeight+2,420)+'px'};t.addEventListener('input',r);r()});
+document.querySelectorAll('main form[method="post" i]').forEach(function(f){f.addEventListener('submit',function(e){
+ if(e.defaultPrevented)return;var b=e.submitter||f.querySelector('button:not([type=button])');
+ if(b&&!b.hasAttribute('data-busy')){setTimeout(function(){b.setAttribute('data-busy','1');b.dataset.t=b.textContent;b.textContent='Saving…'},0);setTimeout(function(){b.removeAttribute('data-busy');if(b.dataset.t)b.textContent=b.dataset.t},8000)}
+})});
+})();
+</script>
 </body></html>

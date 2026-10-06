@@ -12,11 +12,11 @@
 <div class="card"><h3>New Ticket</h3>
 <form method="post" action="<?= base_url('its-tickets') ?>"><?= csrf_field() ?>
 <?php if ($templates) { ?><label for="ticket-template">Start from a template</label><select id="ticket-template"><option value="">Choose a starting point</option><?php foreach ($templates as $template) { ?><option value="<?= esc($template['id']) ?>"><?= esc($template['name']) ?></option><?php } ?></select><?php } ?>
-<label>Client</label><select name="client_id" required><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>"><?= esc($c['name']) ?></option><?php } ?></select>
-<label>Subject</label><input id="ticket-subject" name="subject" required>
-<label>Description</label><textarea id="ticket-description" name="description"></textarea>
-<label>Priority</label><select name="priority"><?php foreach (['low','medium','high','urgent'] as $p) { ?><option><?= $p ?></option><?php } ?></select>
-<label>Visit Date</label><input type="date" name="visit_date" value="<?= date('Y-m-d') ?>">
+<label for="ticket-client">Client</label><select id="ticket-client" name="client_id" required><option value="">Select a client</option><?php foreach ($clients as $c) { ?><option value="<?= $c['id'] ?>"><?= esc($c['name']) ?></option><?php } ?></select>
+<label for="ticket-subject">Subject</label><input id="ticket-subject" name="subject" required maxlength="190" placeholder="Short summary, e.g. Laptop will not boot">
+<label for="ticket-description">Description</label><textarea id="ticket-description" name="description" maxlength="5000" placeholder="What is happening, error messages, when it started, what has been tried"></textarea>
+<div class="field"><label>Priority</label><div class="seg" role="radiogroup" aria-label="Priority"><?php foreach (['low','medium','high','urgent'] as $p) { ?><input type="radio" name="priority" id="pr-<?= $p ?>" value="<?= $p ?>" <?= $p === 'medium' ? 'checked' : '' ?>><label for="pr-<?= $p ?>"><?= $p ?></label><?php } ?></div></div>
+<label for="visit-date">Visit date</label><input id="visit-date" type="date" name="visit_date" value="<?= date('Y-m-d') ?>">
 <button class="btn">Create</button></form></div>
 </div>
 <?php if ($templates) { ?><script id="ticket-templates-data" type="application/json"><?= json_encode($templates, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
