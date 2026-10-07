@@ -7,6 +7,6 @@ use CodeIgniter\Model;
 class CustomFormModel extends Model
 {
     protected $table = 'custom_forms';
-    protected $allowedFields = ['title', 'description', 'fields_json', 'active', 'created_at', 'updated_at'];
+    protected $allowedFields = ['title', 'description', 'fields_json', 'active', 'created_at', 'updated_at', 'audience', 'settings_json'];
     protected $useTimestamps = false;
 }

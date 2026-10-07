@@ -10,6 +10,85 @@ class SystemUpdater
     private const MAX_PACKAGE = 100 * 1024 * 1024;
     public const FRAMEWORK_API = 'https://api.github.com/repos/codeigniter4/framework/releases/latest';
 
+    /**
+     * Update packages folder (v3.5): writable/updates/ holds ZIP files or unzipped package folders
+     * (uploaded from the Updates page or copied in by FTP) that can be installed later.
+     */
+    public function inboxDir(): string
+    {
+        $d = WRITEPATH . 'updates';
+        if (!is_dir($d)) @mkdir($d, 0775, true);
+        if (!is_file($d . DIRECTORY_SEPARATOR . '.htaccess')) @file_put_contents($d . DIRECTORY_SEPARATOR . '.htaccess', "Require all denied\n");
+        return $d;
+    }
+
+    public function inboxPath(string $name): ?string
+    {
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/', $name) || str_contains($name, '..')) return null;
+        $p = $this->inboxDir() . DIRECTORY_SEPARATOR . $name;
+        return (is_file($p) && str_ends_with(strtolower($name), '.zip')) || is_dir($p) ? $p : null;
+    }
+
+    /** Packages waiting in the folder, with the version and notes read from VERSION / update.json inside each. */
+    public function inbox(): array
+    {
+        $out = [];
+        foreach (scandir($this->inboxDir()) ?: [] as $n) {
+            if ($n[0] === '.' || !$this->inboxPath($n)) continue;
+            $p = $this->inboxDir() . DIRECTORY_SEPARATOR . $n;
+            $meta = []; $ver = ''; $err = '';
+            if (is_dir($p)) {
+                $ver = trim((string) @file_get_contents($p . DIRECTORY_SEPARATOR . 'VERSION'));
+                $meta = json_decode((string) @file_get_contents($p . DIRECTORY_SEPARATOR . 'update.json'), true) ?: [];
+                if (!is_dir($p . DIRECTORY_SEPARATOR . 'app') && !is_dir($p . DIRECTORY_SEPARATOR . 'public')) $err = 'No app/ or public/ folder inside.';
+            } else {
+                $z = new \ZipArchive();
+                if ($z->open($p) === true) { $ver = trim((string) $z->getFromName('VERSION')); $meta = json_decode((string) $z->getFromName('update.json'), true) ?: []; $z->close(); }
+                else $err = 'Not a valid ZIP file.';
+            }
+            $ver = $ver !== '' ? $ver : (string) ($meta['version'] ?? '');
+            if ($err === '' && !preg_match('/^\d+\.\d+\.\d+$/', $ver)) $err = 'No VERSION file (x.y.z) in the package.';
+            $out[] = ['name' => $n, 'kind' => is_dir($p) ? 'folder' : 'zip', 'size' => is_file($p) ? filesize($p) : 0, 'time' => date('Y-m-d H:i', filemtime($p)), 'version' => $ver, 'notes' => (string) ($meta['notes'] ?? $meta['title'] ?? ''), 'error' => $err,
+                'type' => $err === '' ? self::classify($this->version(), $ver) : '', 'newer' => $err === '' && version_compare($ver, $this->version(), '>')];
+        }
+        usort($out, static fn($a, $b) => version_compare($b['version'] ?: '0', $a['version'] ?: '0'));
+        return $out;
+    }
+
+    /** Packs an unzipped package folder into a temporary ZIP so it goes through the normal checks and rollback. */
+    public function folderToZip(string $dir): string
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'itsup');
+        $zip = new \ZipArchive();
+        if ($zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) throw new \RuntimeException('Cannot create a temporary package.');
+        $base = rtrim($dir, '/\\');
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            if (!$f->isFile()) continue;
+            $rel = str_replace('\\', '/', substr($f->getPathname(), strlen($base) + 1));
+            if ($rel === 'update.json' || $this->allowedPath($rel)) $zip->addFile($f->getPathname(), $rel);
+        }
+        $zip->close();
+        return $tmp;
+    }
+
+    public function inboxRemove(string $name): bool
+    {
+        $p = $this->inboxPath($name);
+        if (!$p) return false;
+        if (is_file($p)) return @unlink($p);
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($p, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($it as $f) $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname());
+        return @rmdir($p);
+    }
+
+    /** Updates, backups and integrity checks must not be cut off by max_execution_time or a closed browser tab. */
+    public static function longRunning(): void
+    {
+        if (function_exists('set_time_limit')) @set_time_limit(900);
+        ignore_user_abort(true);
+    }
+
     private function root(): string { return rtrim(ROOTPATH, '/\\'); }
     private function backupDir(): string { $d = WRITEPATH . 'backups'; if (!is_dir($d)) @mkdir($d, 0775, true); return $d; }
     private function baselineFile(): string { return WRITEPATH . 'integrity.json'; }
@@ -53,6 +132,7 @@ class SystemUpdater
 
     public function recordBaseline(): int
     {
+        self::longRunning();
         $h = [];
         foreach ($this->files() as $rel => $abs) $h[$rel] = hash_file('sha256', $abs);
         file_put_contents($this->baselineFile(), json_encode(['version' => $this->version(), 'created' => date('c'), 'files' => $h]), LOCK_EX);
@@ -61,6 +141,7 @@ class SystemUpdater
 
     public function verify(): array
     {
+        self::longRunning();
         $res = ['baseline' => false, 'ok' => false, 'modified' => [], 'missing' => [], 'added' => [], 'checked' => 0, 'created' => null];
         $b = is_file($this->baselineFile()) ? json_decode((string) file_get_contents($this->baselineFile()), true) : null;
         if (!is_array($b) || !isset($b['files'])) return $res;
@@ -98,6 +179,7 @@ class SystemUpdater
 
     public function createCodeBackup(string $label = 'manual'): string
     {
+        self::longRunning();
         $label = preg_replace('/[^A-Za-z0-9.-]/', '', $label) ?: 'manual';
         $name = 'code-' . date('Ymd-His') . '-v' . $this->version() . '-' . $label . '.zip';
         $zip = new \ZipArchive();
@@ -109,6 +191,7 @@ class SystemUpdater
 
     public function createDbBackup($db): string
     {
+        self::longRunning();
         $sql = "-- IT Support CI4 backup " . date('c') . "\n";
         foreach ($db->listTables() as $table) {
             if (in_array($table, ['migrations', 'sessions', 'ci_sessions'], true)) continue;
@@ -254,6 +337,7 @@ class SystemUpdater
      */
     public function applyPackage(string $zipPath, string $sha256, string $newVersion, $db, string $kind = 'app'): array
     {
+        self::longRunning();
         $actual = hash_file('sha256', $zipPath);
         if ($sha256 !== '' && !hash_equals(strtolower($sha256), $actual)) { $this->log("Aborted $kind $newVersion: checksum mismatch"); throw new \RuntimeException('Package checksum mismatch; update aborted.'); }
         $this->log("Starting $kind update to $newVersion (sha256 $actual)");
@@ -272,29 +356,110 @@ class SystemUpdater
             $entries[$i] = $n;
         }
         if (!$entries) { $zip->close(); throw new \RuntimeException($kind === 'framework' ? 'No system/ files found in the framework package.' : 'Package is empty.'); }
+
+        // ---- Pre-flight: refuse before anything is touched (v3) ----
+        $meta = $kind === 'app' ? (json_decode((string) $zip->getFromName('update.json'), true) ?: []) : [];
+        $this->preflight($zip, $entries, $meta, $newVersion);
+        $remove = array_values(array_filter((array) ($meta['remove'] ?? []), fn($p) => is_string($p) && $this->allowedPath($p) && !isset(array_flip($entries)[$p])));
+
         $codeBackup = $this->createCodeBackup('pre-' . $newVersion);
         $dbBackup = $this->createDbBackup($db);
         $this->log("Backups created: $codeBackup, $dbBackup");
+        $migrations = \Config\Services::migrations();
+        $batchBefore = null;
+        try { $batchBefore = $migrations->getLastBatch(); } catch (\Throwable $e) { /* unknown: never roll back migrations blindly */ }
+        $created = [];
+        $this->maintenance(true);
         try {
             foreach ($entries as $i => $n) {
                 $data = $zip->getFromIndex($i);
                 if ($data === false) throw new \RuntimeException('Cannot read ' . $n);
                 $dest = $this->root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $n);
-                if (!is_dir(dirname($dest))) mkdir(dirname($dest), 0775, true);
-                file_put_contents($dest, $data, LOCK_EX);
+                if (!is_file($dest)) $created[] = $dest;
+                if (!is_dir(dirname($dest)) && !mkdir(dirname($dest), 0775, true) && !is_dir(dirname($dest))) throw new \RuntimeException('Cannot create folder for ' . $n);
+                if (file_put_contents($dest, $data, LOCK_EX) !== strlen($data)) throw new \RuntimeException('Could not write ' . $n . ' (disk full or permissions?)');
             }
             $zip->close();
             if ($kind === 'app') {
-                file_put_contents($this->root() . DIRECTORY_SEPARATOR . 'VERSION', $newVersion . "\n", LOCK_EX);
-                \Config\Services::migrations()->latest();
+                if (file_put_contents($this->root() . DIRECTORY_SEPARATOR . 'VERSION', $newVersion . "\n", LOCK_EX) === false) throw new \RuntimeException('Could not write VERSION');
+                $migrations->latest();
+                foreach ($remove as $p) {
+                    $abs = $this->root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $p);
+                    if (is_file($abs)) @unlink($abs);
+                }
+                if ($remove) $this->log('Removed ' . count($remove) . ' obsolete file(s) listed in update.json');
+                if ($problem = $this->healthCheck()) throw new \RuntimeException('Health check failed: ' . $problem);
             }
         } catch (\Throwable $e) {
+            // Undo in reverse: database changes from this run, then files (old ones restored, new ones removed).
+            $undo = [];
+            // Only undo batches this run created; with an unknown starting point we leave the schema alone.
+            try {
+                if ($kind === 'app' && $batchBefore !== null && $migrations->getLastBatch() > $batchBefore) { $migrations->regress($batchBefore); $undo[] = 'database changes rolled back to batch ' . $batchBefore; }
+            } catch (\Throwable $m) { $undo[] = 'database rollback failed (' . $m->getMessage() . '); restore ' . $dbBackup . ' if needed'; }
             $this->restoreFromZip($this->backupPath($codeBackup));
-            $this->log("FAILED, rolled back from $codeBackup: " . $e->getMessage());
-            throw new \RuntimeException('Update failed and files were rolled back from ' . $codeBackup . ': ' . $e->getMessage());
+            foreach ($created as $f) @unlink($f);
+            $undo[] = 'files restored from ' . $codeBackup . ', ' . count($created) . ' new file(s) removed';
+            $this->maintenance(false);
+            $this->log('FAILED: ' . $e->getMessage() . ' | ' . implode('; ', $undo));
+            throw new \RuntimeException('Update failed and was rolled back (' . implode('; ', $undo) . '): ' . $e->getMessage());
         }
+        $this->maintenance(false);
         $this->recordBaseline();
         $this->log("Applied $kind $newVersion (" . count($entries) . ' files)');
         return ['files' => count($entries), 'codeBackup' => $codeBackup, 'dbBackup' => $dbBackup];
+    }
+
+    /** Checks that run before any file is written: PHP version, upgrade path, PHP syntax and writable folders. */
+    private function preflight(\ZipArchive $zip, array $entries, array $meta, string $newVersion): void
+    {
+        $fail = function (string $msg) use ($zip, $newVersion) { $zip->close(); $this->log("Aborted $newVersion before changes: $msg"); throw new \RuntimeException('Pre-flight check failed, nothing was changed: ' . $msg); };
+        if (!empty($meta['min_php']) && version_compare(PHP_VERSION, (string) $meta['min_php'], '<')) $fail('this release needs PHP ' . $meta['min_php'] . ' (server has ' . PHP_VERSION . ').');
+        if (!empty($meta['min_from']) && version_compare($this->version(), (string) $meta['min_from'], '<')) $fail('upgrade to ' . $meta['min_from'] . ' first (installed ' . $this->version() . ').');
+        foreach ($entries as $i => $n) {
+            if (!str_ends_with($n, '.php')) continue;
+            $code = $zip->getFromIndex($i);
+            try { token_get_all((string) $code, TOKEN_PARSE); } catch (\ParseError $e) { $fail("$n has a PHP syntax error on line " . $e->getLine() . '.'); }
+        }
+        foreach (array_unique(array_map(static fn($n) => explode('/', $n)[0], $entries)) as $top) {
+            $dir = $this->root() . DIRECTORY_SEPARATOR . $top;
+            $probe = is_dir($dir) ? $dir : $this->root();
+            if (!is_writable($probe)) $fail("the server cannot write to $top/.");
+        }
+    }
+
+    /** While files are being replaced, other visitors get a short "updating" page instead of half-updated code. */
+    public function maintenance(bool $on): void
+    {
+        $flag = WRITEPATH . 'maintenance.flag';
+        if ($on) @file_put_contents($flag, time() . '|' . bin2hex(random_bytes(16)), LOCK_EX); else @unlink($flag);
+    }
+
+    /**
+     * Requests the sign-in page through the web server with the new code in place.
+     * Returns an error message on a server error; null when healthy or when the server cannot reach itself.
+     */
+    private function healthCheck(): ?string
+    {
+        $flag = (string) @file_get_contents(WRITEPATH . 'maintenance.flag');
+        $token = explode('|', $flag, 2)[1] ?? '';
+        try {
+            $r = \Config\Services::curlrequest([], null, null, false)->get(base_url('its-login'), ['timeout' => 20, 'http_errors' => false, 'allow_redirects' => false, 'headers' => ['X-ITS-Health' => $token, 'User-Agent' => 'ITSupport-Updater-Health']] + $this->tlsOptions());
+        } catch (\CodeIgniter\HTTP\Exceptions\HTTPException $e) {
+            // Only a genuine connection failure (firewall, DNS, loopback blocked) skips the check.
+            $this->log('Health check skipped (server could not reach itself): ' . $e->getMessage());
+            return null;
+        } catch (\Throwable $e) {
+            return 'the health check itself failed (' . $e->getMessage() . ')';
+        }
+        $code = $r->getStatusCode();
+        if ($code >= 500) {
+            $raw = (string) $r->getBody();
+            $json = json_decode($raw, true);
+            $detail = is_array($json) && isset($json['message']) ? (string) $json['message'] : trim(strip_tags($raw));
+            return "the site returned HTTP $code after the update" . ($detail !== '' ? ' (' . mb_substr($detail, 0, 200) . ')' : '');
+        }
+        $this->log("Health check passed (HTTP $code)");
+        return null;
     }
 }

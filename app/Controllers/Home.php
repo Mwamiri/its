@@ -4,8 +4,9 @@ namespace App\Controllers;
 
 class Home extends BaseController
 {
-    public function index(): string
+    /** The site root goes to sign-in, which forwards signed-in users to their home and fresh installs to setup. */
+    public function index()
     {
-        return view('welcome_message');
+        return redirect()->to(base_url('its-login'));
     }
 }

@@ -2,10 +2,13 @@
 <?php $labels = \App\Controllers\ItsAssets::EVENTS; $comps = array_keys(\App\Controllers\ItsAssets::COMPONENTS); ?>
 <div class="grid grid-2">
 <div class="card"><div class="section-heading"><h2><?= esc($asset['name']) ?></h2><a class="button secondary" href="<?= base_url('its-assets-edit/' . $asset['id']) ?>">Edit details</a></div>
+<?php if ($client) { ?><p class="muted" style="margin-top:-6px">Client: <a href="<?= base_url('its-clients-view/' . $client['id']) ?>"><?= esc($client['name']) ?></a> · <a href="<?= base_url('its-clients-assets-report/' . $client['id']) ?>">Asset register</a></p><?php } ?>
 <p><strong>Serial:</strong> <?= esc($asset['serial_number']) ?> · <strong>Status:</strong> <span class="badge <?= $asset['status'] === 'active' ? 'green' : 'orange' ?>"><?= esc($asset['status']) ?></span><br>
 <strong>Brand / model:</strong> <?= esc(trim($asset['brand'] . ' ' . $asset['model'])) ?><br><strong>Location:</strong> <?= esc($asset['location']) ?></p>
 <table><tr><th>Hostname</th><td><?= esc($asset['hostname'] ?: '-') ?></td></tr><tr><th>CPU</th><td><?= esc($asset['cpu'] ?: '-') ?></td></tr><tr><th>RAM</th><td><?= esc($asset['ram'] ?: '-') ?></td></tr><tr><th>Storage</th><td><?= esc($asset['storage'] ?: '-') ?></td></tr><tr><th>OS</th><td><?= esc($asset['os'] ?: '-') ?></td></tr><tr><th>Purchased</th><td><?= esc($asset['purchase_date'] ?: '-') ?></td></tr>
-<tr><th>Warranty until</th><td><?= esc($asset['warranty_until'] ?: '-') ?><?php if (!empty($asset['warranty_until']) && $asset['warranty_until'] < date('Y-m-d')) { ?> <span class="badge red">expired</span><?php } ?></td></tr></table>
+<tr><th>Warranty until</th><td><?= esc($asset['warranty_until'] ?: '-') ?><?php if (!empty($asset['warranty_until']) && $asset['warranty_until'] < date('Y-m-d')) { ?> <span class="badge orange">expired</span><?php } ?></td></tr>
+<?php foreach (\App\Libraries\CustomFields::defs('assets') as $d) { $v = \App\Libraries\CustomFields::display($d, $cf[$d['field_key']] ?? ''); ?><tr><th><?= esc($d['label']) ?></th><td><?= $v === '' ? '-' : nl2br(esc($v)) ?></td></tr><?php } ?>
+<?php if (!empty($asset['notes'])) { ?><tr><th>Notes</th><td><?= nl2br(esc($asset['notes'])) ?></td></tr><?php } ?></table>
 <img src="<?= base_url('its-qr/' . $asset['id']) ?>" alt="QR code" style="width:160px;height:160px;background:#fff;border:1px solid #dbe2ea;margin-top:10px"></div>
 <div class="card"><h3>Log work on this machine</h3>
 <form method="post" action="<?= base_url('its-assets-log/' . $asset['id']) ?>"><?= csrf_field() ?>

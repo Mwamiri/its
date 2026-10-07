@@ -18,6 +18,15 @@
 <label for="np">New password (min 8 characters)</label><input id="np" type="password" name="new_password" minlength="8" required>
 <label for="cf">Confirm new password</label><input id="cf" type="password" name="confirm_password" minlength="8" required>
 <button class="btn">Update password</button></form></div>
+<div class="card"><h3>Email sign-in codes</h3>
+<?php $emailOn = !empty($me['email_2fa']); ?>
+<p><span class="badge <?= $emailOn ? 'green' : 'gray' ?>"><?= $emailOn ? 'On' : 'Off' ?></span> After your password, we email you a 6-digit code <strong>and</strong> a one-click sign-in link that opens your dashboard. Works without an authenticator app<?= !empty($me['totp_enabled']) ? ', and as a backup option for your authenticator' : '' ?>.</p>
+<form method="post" action="<?= base_url('its-security-email2fa') ?>"><?= csrf_field() ?>
+<label for="em2">Email address for codes</label><input id="em2" type="email" name="email" maxlength="190" required value="<?= esc((string) ($me['email'] ?? '')) ?>">
+<label for="em2p">Confirm your password</label><input id="em2p" type="password" name="password" required>
+<input type="hidden" name="state" value="<?= $emailOn ? 'off' : 'on' ?>">
+<div class="form-actions"><button class="btn"><?= $emailOn ? 'Turn off email codes' : 'Turn on email codes' ?></button><?php if ($emailOn) { ?><button class="btn secondary" name="state" value="update">Update email only</button><?php } ?></div></form>
+<p class="muted" style="margin-top:8px">Make sure outgoing mail works (Admin → Mail → send a test) before relying on email codes.</p></div>
 </div>
 <?php if ($admin) { ?>
 <div class="card"><h3>Organisation policies</h3>

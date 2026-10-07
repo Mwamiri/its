@@ -3,7 +3,8 @@ namespace App\Controllers;
 use App\Models\{QuoteModel, QuoteItemModel, ClientModel, SettingModel, DocumentTemplateModel};
 use App\Libraries\MailLib;
 class ItsQuotes extends ItsBase {
-    private function token(array $q): string { return hash('sha256', $q['id'] . $q['quote_number'] . (string) SettingModel::get('cron_token', '')); }
+    private function token(array $q): string { return \App\Libraries\QuoteLink::token($q); }
+    private function legacyToken(array $q): string { return \App\Libraries\QuoteLink::legacyToken($q); }
     public function index() {
         if ($r = $this->needLogin()) return $r;
         return view('itsupport/quotes', ['title' => 'Quotes', 'quotes' => $this->db->table('quotes')->select('quotes.*, clients.name AS client_name')->join('clients', 'clients.id = quotes.client_id')->orderBy('quotes.created_at', 'DESC')->get()->getResultArray(), 'clients' => (new ClientModel())->orderBy('name')->findAll(), 'edit' => null, 'token' => '', 'templates' => (new DocumentTemplateModel())->where('template_type', 'quote')->orderBy('name')->findAll()]);
@@ -53,13 +54,19 @@ class ItsQuotes extends ItsBase {
     }
     public function approve($id, $token) {
         $q = (new QuoteModel())->find($id);
-        if (!$q || !hash_equals($this->token($q), $token)) return $this->response->setStatusCode(403)->setBody('Invalid');
+        $token = (string) $token;
+        $pending = $q && in_array($q['status'], ['draft', 'sent'], true);
+        if (!$q || !(hash_equals($this->token($q), $token) || ($pending && hash_equals($this->legacyToken($q), $token)))) return $this->response->setStatusCode(403)->setBody('Invalid');
         $done = false;
-        if ($this->request->getMethod() === 'POST') {
-            $name = $this->request->getPost('name') ?: 'Client';
-            $action = $this->request->getPost('action');
-            if ($action === 'approve') { (new QuoteModel())->update($id, ['status' => 'approved', 'approved_at' => date('Y-m-d H:i:s'), 'approved_by' => $name]); $done = true; }
-            if ($action === 'reject') { (new QuoteModel())->update($id, ['status' => 'rejected', 'approved_at' => date('Y-m-d H:i:s'), 'approved_by' => $name]); $done = true; }
+        // A quote can be decided once; later posts to the same link are ignored and the page shows the recorded status.
+        if ($pending && $this->request->getMethod() === 'POST') {
+            $name = mb_substr(trim((string) $this->request->getPost('name')), 0, 190) ?: 'Client';
+            $status = ['approve' => 'approved', 'reject' => 'rejected'][(string) $this->request->getPost('action')] ?? null;
+            if ($status) {
+                (new QuoteModel())->update($id, ['status' => $status, 'approved_at' => date('Y-m-d H:i:s'), 'approved_by' => $name]);
+                $this->audit('quote_' . $status, 'quotes', $q['quote_number'] . ' by ' . $name);
+                $done = true;
+            }
         }
         return view('itsupport/quote_approve', ['quote' => $q, 'items' => (new QuoteItemModel())->where('quote_id', $id)->findAll(), 'done' => $done]);
     }

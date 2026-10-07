@@ -23,7 +23,12 @@ class MailLib {
         $email->setSubject($subject);
         $email->setMessage($html);
         $ok = (bool) $email->send();
-        MailLogModel::insert(['recipients' => implode(', ', $to), 'subject' => $subject, 'status' => $ok ? 'sent' : 'failed', 'error' => $ok ? null : substr(strip_tags($email->printDebugger()), 0, 500)]);
+        // Logging must never turn a sent email into an error for the caller.
+        try {
+            (new MailLogModel())->insert(['recipients' => implode(', ', $to), 'subject' => mb_substr($subject, 0, 255), 'status' => $ok ? 'sent' : 'failed', 'error' => $ok ? null : substr(strip_tags($email->printDebugger()), 0, 500)]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Mail log write failed: {m}', ['m' => $e->getMessage()]);
+        }
         return $ok;
     }
     public function recipients(string $key): array {

@@ -1,0 +1,19 @@
+# Lets the site open at http://host/itsupportz/ (no /public in the URL)
+# and makes sure nothing outside public/ (.env, app/, writable/, system/) can ever be downloaded.
+Options -Indexes
+
+# Never serve dot-files such as .env or .git, even if rewriting is unavailable.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Send every request into public/; public/.htaccess then routes it to index.php.
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite the project root must not be browsable at all.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

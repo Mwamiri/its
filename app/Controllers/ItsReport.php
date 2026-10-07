@@ -8,20 +8,24 @@ class ItsReport extends ItsBase {
         $ticket = $this->db->table('tickets')->select('tickets.*, clients.name AS client_name, clients.logo_path AS client_logo, clients.email')->join('clients', 'clients.id = tickets.client_id')->where('tickets.id', $id)->get()->getRowArray();
         if (!$ticket) return redirect()->to(base_url('its-tickets'));
         $signature = (new SignatureModel())->where('ticket_id', $id)->orderBy('id', 'DESC')->first();
-        return view('itsupport/report', ['title' => 'Report', 'ticket' => $ticket, 'tasks' => (new TaskModel())->where('ticket_id', $id)->findAll(), 'signature' => $signature, 'templates' => (new DocumentTemplateModel())->where('template_type', 'report')->orderBy('name')->findAll()]);
+        $asset = !empty($ticket['asset_id']) ? $this->db->table('assets')->select('name, serial_number')->where('id', (int) $ticket['asset_id'])->get()->getRowArray() : null;
+        return view('itsupport/report', ['title' => 'Report', 'ticket' => $ticket, 'asset' => $asset, 'tasks' => (new TaskModel())->where('ticket_id', $id)->findAll(), 'signature' => $signature, 'templates' => (new DocumentTemplateModel())->where('template_type', 'report')->orderBy('name')->findAll()]);
     }
     public function sign($id) {
         if ($r = $this->needLogin()) return $r;
         $ticket = $this->db->table('tickets')->select('tickets.*, clients.name AS client_name, clients.email')->join('clients', 'clients.id = tickets.client_id')->where('tickets.id', $id)->get()->getRowArray();
         if (!$ticket) return redirect()->to(base_url('its-tickets'));
-        $data = $this->request->getPost('signature_data') ?? '';
+        $data = (string) ($this->request->getPost('signature_data') ?? '');
         if (preg_match('/^data:image\/(png|jpeg);base64,/', $data, $m) && $this->request->getPost('signed_by_name')) {
             $bin = base64_decode(substr($data, strpos($data, ',') + 1), true);
+            // Only store real PNG/JPEG images of a sane size; the declared type must match the decoded content.
+            $info = ($bin !== false && strlen($bin) <= 1024 * 1024) ? @getimagesizefromstring($bin) : false;
+            if (!$info || $info['mime'] !== 'image/' . $m[1]) return redirect()->to(base_url('its-report/' . $id))->with('err', 'The signature image could not be read. Please sign again.');
             $dir = FCPATH . 'uploads/signatures';
             if (!is_dir($dir)) mkdir($dir, 0775, true);
             $fn = 'signature-' . $id . '-' . date('Ymd-His') . '.' . ($m[1] === 'jpeg' ? 'jpg' : 'png');
             file_put_contents($dir . '/' . $fn, $bin);
-            $sigId = (new SignatureModel())->insert(['ticket_id' => $id, 'signed_by_name' => $this->request->getPost('signed_by_name'), 'signature_path' => 'uploads/signatures/' . $fn, 'verification_code' => strtoupper(bin2hex(random_bytes(6))), 'ip_address' => $this->request->getIPAddress(), 'signed_at' => date('Y-m-d H:i:s')]);
+            $sigId = (new SignatureModel())->insert(['ticket_id' => $id, 'signed_by_name' => mb_substr(trim((string) $this->request->getPost('signed_by_name')), 0, 190), 'signature_path' => 'uploads/signatures/' . $fn, 'verification_code' => strtoupper(bin2hex(random_bytes(6))), 'ip_address' => $this->request->getIPAddress(), 'signed_at' => date('Y-m-d H:i:s')]);
             $sig = (new SignatureModel())->find($sigId);
             $this->audit('signature_captured', 'signatures', $ticket['ticket_number']);
             $rows = '';

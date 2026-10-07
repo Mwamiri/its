@@ -10,8 +10,8 @@
         <input type="email" name="email">
         <label>Admin Username</label>
         <input name="username" required>
-        <label>Password</label>
-        <input type="password" name="password" required minlength="6">
+        <label>Password (at least 8 characters)</label>
+        <input type="password" name="password" required minlength="8">
         <button class="btn" type="submit">Install</button>
     </form>
 </div>

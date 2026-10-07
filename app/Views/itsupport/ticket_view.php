@@ -1,13 +1,21 @@
 <?= view('itsupport/_header') ?>
-<div class="card"><h2><?= esc($ticket['ticket_number']) ?></h2>
-<p><strong>Subject:</strong> <?= esc($ticket['subject']) ?><br><strong>Status:</strong> <?= esc($ticket['status']) ?></p>
-<a class="button" href="<?= base_url('its-report/' . $ticket['id']) ?>">Report & Sign-Off</a></div>
+<?php $tcfDefs = \App\Libraries\CustomFields::defs('tickets'); ?>
+<div class="card"><div class="section-heading"><div><p class="eyebrow"><?= esc($ticket['ticket_number']) ?> · <?= esc(str_replace('_', ' ', $ticket['priority'])) ?> priority</p><h2><?= esc($ticket['subject']) ?></h2></div>
+<div class="quick-actions"><span class="badge blue"><?= esc(str_replace('_', ' ', $ticket['status'])) ?></span><a class="button" href="<?= base_url('its-report/' . $ticket['id']) ?>">Report &amp; sign-off</a></div></div>
+<p class="muted"><?php if ($client) { ?>Client: <a href="<?= base_url('its-clients-view/' . $client['id']) ?>"><?= esc($client['name']) ?></a><?= $client['phone'] ? ' · ' . esc($client['phone']) : '' ?><?php } ?>
+<?php if ($asset) { ?> · Equipment: <a href="<?= base_url('its-assets-view/' . $asset['id']) ?>"><?= esc($asset['name']) ?></a><?= $asset['serial_number'] ? ' (S/N ' . esc($asset['serial_number']) . ')' : '' ?><?php } ?>
+ · Opened <?= esc(substr((string) $ticket['created_at'], 0, 16)) ?></p>
+<?php if (!empty($ticket['description'])) { ?><p><?= nl2br(esc($ticket['description'])) ?></p><?php } ?>
+<?php if ($tcfDefs) { ?><table><?php foreach ($tcfDefs as $d) { $v = \App\Libraries\CustomFields::display($d, $cf[$d['field_key']] ?? ''); ?><tr><th style="width:30%"><?= esc($d['label']) ?></th><td><?= $v === '' ? '<span class="muted">-</span>' : nl2br(esc($v)) ?></td></tr><?php } ?></table><?php } ?>
+</div>
 <?php $slaState = \App\Libraries\Sla::state($ticket); $slaCls = ['ok' => 'green', 'warning' => 'orange', 'breached' => 'red', 'met' => 'green', 'none' => 'gray'][$slaState] ?? 'gray'; ?>
 <div class="card"><h3>SLA &amp; assignment</h3>
 <p><span class="badge <?= $slaCls ?>">SLA: <?= esc($slaState) ?></span> <?= esc(\App\Libraries\Sla::remaining($ticket)) ?><?php if (!empty($ticket['due_at'])) { ?> · Due <?= esc(substr((string) $ticket['due_at'], 0, 16)) ?><?php } ?><?php if (!empty($ticket['rating'])) { ?> · Client rating <strong><?= (int) $ticket['rating'] ?>/5</strong><?= $ticket['rating_comment'] ? ' – ' . esc($ticket['rating_comment']) : '' ?><?php } ?></p>
 <form method="post" action="<?= base_url('its-tickets-meta/' . $ticket['id']) ?>"><?= csrf_field() ?>
 <div class="grid grid-2"><div><label for="tt">Type</label><select id="tt" name="ticket_type"><?php foreach (['incident', 'request', 'problem', 'change'] as $ty) { ?><option <?= ($ticket['ticket_type'] ?? 'incident') === $ty ? 'selected' : '' ?>><?= $ty ?></option><?php } ?></select></div>
-<div><label for="as">Assigned to</label><select id="as" name="assigned_to"><option value="0">Unassigned</option><?php foreach (($staff ?? []) as $s) { ?><option value="<?= (int) $s['id'] ?>" <?= (int) ($ticket['assigned_to'] ?? 0) === (int) $s['id'] ? 'selected' : '' ?>><?= esc($s['name']) ?></option><?php } ?></select></div></div>
+<div><label for="as">Assigned to</label><select id="as" name="assigned_to"><option value="0">Unassigned</option><?php foreach (($staff ?? []) as $s) { ?><option value="<?= (int) $s['id'] ?>" <?= (int) ($ticket['assigned_to'] ?? 0) === (int) $s['id'] ? 'selected' : '' ?>><?= esc($s['name']) ?></option><?php } ?></select></div>
+<?php if ($clientAssets) { ?><div><label for="ta">Equipment</label><select id="ta" name="asset_id"><option value="0">Not linked</option><?php foreach ($clientAssets as $ca) { ?><option value="<?= (int) $ca['id'] ?>" <?= (int) ($ticket['asset_id'] ?? 0) === (int) $ca['id'] ? 'selected' : '' ?>><?= esc($ca['name'] . ($ca['serial_number'] ? ' · ' . $ca['serial_number'] : '')) ?></option><?php } ?></select></div><?php } ?></div>
+<?php if ($tcfDefs) { ?><details><summary>Edit additional details</summary><?= view('itsupport/_custom_fields', ['entity' => 'tickets', 'values' => $cf]) ?></details><?php } ?>
 <button class="btn">Save</button></form></div>
 <div class="card"><h3>Time tracking</h3>
 <?php $tot = array_sum(array_column($time ?? [], 'minutes')); ?><p class="muted">Total <?= floor($tot / 60) ?>h <?= $tot % 60 ?>m</p>

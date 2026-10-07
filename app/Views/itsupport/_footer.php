@@ -1,8 +1,10 @@
 </main>
 <?php
 $footerText = \App\Models\SettingModel::get('footer_text', 'CodeIgniter 4 port');
+$footerUser = session('its_user');
+$footerVersion = $footerUser && ($footerUser['role'] ?? '') !== 'client' ? (new \App\Libraries\SystemUpdater())->version() : null;
 ?>
-<footer><?= esc(\App\Models\SettingModel::get('company_name', 'IT Support')) ?><?= $footerText !== '' ? ' - ' . esc($footerText) : '' ?></footer>
+<footer><?= esc(\App\Models\SettingModel::get('company_name', 'IT Support')) ?><?= $footerText !== '' ? ' - ' . esc($footerText) : '' ?><?php if ($footerVersion) { ?> &middot; v<?= esc($footerVersion) ?><?php if (($footerUser['role'] ?? '') === 'admin') { ?> &middot; <a href="<?= base_url('its-updates#whats-new') ?>" style="color:inherit;">What's new</a><?php } ?><?php } ?></footer>
 <script>
 (() => {
     const language = document.querySelector('#ui-language');

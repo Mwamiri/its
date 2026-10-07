@@ -28,11 +28,15 @@ class ItsSecurity extends ItsBase {
     public function enable() {
         if (!$this->user()) return redirect()->to(base_url('its-login'));
         $secret = (string) session('totp_setup');
-        if ($secret === '' || !Totp::verify($secret, (string) $this->request->getPost('code'))) {
+        $step = $secret === '' ? null : Totp::matchStep($secret, (string) $this->request->getPost('code'));
+        if ($step === null) {
             return redirect()->to(base_url('its-security'))->with('err', 'That code did not match. Check the time on your phone and try again.');
         }
         [$plain, $hashes] = Totp::newRecoveryCodes();
-        (new UserModel())->update($this->user()['id'], ['totp_secret' => Totp::seal($secret), 'totp_enabled' => 1, 'recovery_codes' => $hashes]);
+        $data = ['totp_secret' => Totp::seal($secret), 'totp_enabled' => 1, 'recovery_codes' => $hashes];
+        // The setup code is burned so it cannot be reused at the next sign-in.
+        if ($this->db->fieldExists('totp_last_step', 'users')) $data['totp_last_step'] = $step;
+        (new UserModel())->update($this->user()['id'], $data);
         session()->remove('totp_setup');
         $this->audit('2fa_enabled', 'auth', $this->user()['username']);
         return redirect()->to(base_url('its-security'))->with('ok', 'Two-factor authentication is on. Save your recovery codes now; they are shown only once.')->with('codes', $plain);
@@ -44,6 +48,23 @@ class ItsSecurity extends ItsBase {
         (new UserModel())->update($me['id'], ['totp_secret' => null, 'totp_enabled' => 0, 'recovery_codes' => null]);
         $this->audit('2fa_disabled', 'auth', $me['username']);
         return redirect()->to(base_url('its-security'))->with('ok', 'Two-factor authentication has been turned off.');
+    }
+    /** Turn emailed sign-in codes / links on or off, or change the address they go to (v3.5). */
+    public function emailTwoFactor() {
+        if (!$this->user()) return redirect()->to(base_url('its-login'));
+        $back = redirect()->to(base_url('its-security'));
+        if (!$this->db->fieldExists('email_2fa', 'users')) return $back->with('err', 'Run the 3.5 database update first.');
+        $me = $this->me();
+        if (!password_verify((string) $this->request->getPost('password'), $me['password'])) return $back->with('err', 'Password is incorrect.');
+        $email = trim((string) $this->request->getPost('email'));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 190) return $back->with('err', 'Enter a valid email address.');
+        $state = (string) $this->request->getPost('state');
+        $data = ['email' => $email];
+        if ($state === 'on') $data['email_2fa'] = 1;
+        if ($state === 'off') $data['email_2fa'] = 0;
+        $this->db->table('users')->where('id', $me['id'])->update($data);
+        $this->audit($state === 'on' ? '2fa_email_enabled' : ($state === 'off' ? '2fa_email_disabled' : '2fa_email_updated'), 'auth', $me['username']);
+        return $back->with('ok', $state === 'on' ? 'Email sign-in codes are on. Next time you sign in, check ' . $email . '.' : ($state === 'off' ? 'Email sign-in codes are off.' : 'Email address updated.'));
     }
     public function password() {
         if (!$this->user()) return redirect()->to(base_url('its-login'));

@@ -13,7 +13,60 @@ class ItsUpdates extends ItsBase {
             'integrity' => $u->verify(), 'backups' => $u->backups(), 'system' => $this->systemInfo(), 'log' => $u->readLog(), 'auto' => SettingModel::get('update_auto_check', '0') === '1',
             'last' => json_decode((string) SettingModel::get('update_last_check', ''), true),
             'manifestUrl' => SettingModel::get('update_manifest_url', ''),
+            'releaseNotes' => (new \Config\ReleaseNotes())->releases[$u->version()] ?? null,
+            'olderReleases' => array_filter((new \Config\ReleaseNotes())->releases, static fn($v) => version_compare((string) $v, $u->version(), '<'), ARRAY_FILTER_USE_KEY),
+            'allReleases' => (new \Config\ReleaseNotes())->releases,
+            'inbox' => $u->inbox(),
+            'inboxDir' => $u->inboxDir(),
         ]);
+    }
+
+    /** Add a ZIP to the update packages folder without installing it yet. */
+    public function folderUpload() {
+        if ($r = $this->needAdmin()) return $r;
+        $file = $this->request->getFile('package');
+        if (!$file || !$file->isValid() || strtolower($file->getClientExtension()) !== 'zip' || $file->getSize() > 100 * 1024 * 1024) return $this->back('err', 'Choose a .zip update package of at most 100 MB.');
+        $u = new SystemUpdater();
+        $name = trim((string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $file->getClientName()), '-.');
+        if (!preg_match('/\.zip$/i', $name)) $name .= '.zip';
+        if (is_file($u->inboxDir() . DIRECTORY_SEPARATOR . $name)) $name = date('Ymd-His') . '-' . $name;
+        $file->move($u->inboxDir(), $name);
+        $u->log('Package added to the updates folder: ' . $name);
+        $this->audit('update_package_added', 'updates', $name);
+        return $this->back('ok', $name . ' is in the updates folder. Review it below and click Install when ready.');
+    }
+
+    /** Install a package from the updates folder (ZIP or unzipped folder) with the same checks and rollback as an upload. */
+    public function folderInstall() {
+        if ($r = $this->needAdmin()) return $r;
+        $u = new SystemUpdater();
+        $name = (string) $this->request->getPost('name');
+        $pkg = null; foreach ($u->inbox() as $p) if ($p['name'] === $name) $pkg = $p;
+        if (!$pkg || ($path = $u->inboxPath($name)) === null) return $this->back('err', 'That package is no longer in the updates folder.');
+        if ($pkg['error'] !== '') return $this->back('err', $name . ': ' . $pkg['error']);
+        if (!$pkg['newer'] && $this->request->getPost('allow_same') !== '1') return $this->back('err', "Package version {$pkg['version']} is not newer than the installed " . $u->version() . '. Tick "reinstall" to apply it anyway.');
+        if ($pkg['type'] === 'major' && trim((string) $this->request->getPost('confirm')) !== 'UPDATE MAJOR') return $this->back('err', 'This is a major update. Type UPDATE MAJOR to confirm.');
+        $u->log("Installing {$pkg['version']} from the updates folder ($name) by " . ($this->user()['username'] ?? 'admin'));
+        $tmp = null;
+        try {
+            $zip = $pkg['kind'] === 'folder' ? ($tmp = $u->folderToZip($path)) : $path;
+            $res = $u->applyPackage($zip, '', $pkg['version'], $this->db, 'app');
+        } catch (\Throwable $e) {
+            $this->audit('update_failed', 'updates', $e->getMessage());
+            return $this->back('err', $e->getMessage());
+        } finally {
+            if ($tmp) @unlink($tmp);
+        }
+        $this->audit('update_installed', 'updates', $pkg['version'] . ' from folder (' . $res['files'] . ' files)');
+        return $this->back('ok', "Updated to {$pkg['version']} ({$res['files']} files). Backups: {$res['codeBackup']}, {$res['dbBackup']}. You can delete the package from the folder now.");
+    }
+
+    public function folderDelete() {
+        if ($r = $this->needAdmin()) return $r;
+        $name = (string) $this->request->getPost('name');
+        $ok = (new SystemUpdater())->inboxRemove($name);
+        if ($ok) $this->audit('update_package_deleted', 'updates', $name);
+        return $this->back($ok ? 'ok' : 'err', $ok ? $name . ' deleted from the updates folder.' : 'Could not delete that package.');
     }
     private function systemInfo(): array {
         $dbVersion = '';

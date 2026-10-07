@@ -5,11 +5,11 @@ namespace App\Libraries;
 /** Role/module permission levels: 0 none, 1 view, 2 edit. Admin is always full access. */
 class Perm
 {
-    public const MODULES = ['dashboard' => 'Dashboard', 'tickets' => 'Tickets', 'board' => 'Board', 'quotes' => 'Quotes', 'clients' => 'Clients', 'assets' => 'Assets', 'network' => 'Network', 'forms' => 'Forms', 'reports' => 'Reports', 'kb' => 'Knowledge base', 'costs' => 'Costs & prices'];
+    public const MODULES = ['dashboard' => 'Dashboard', 'tickets' => 'Tickets', 'board' => 'Board', 'quotes' => 'Quotes', 'clients' => 'Clients', 'assets' => 'Assets', 'network' => 'Network', 'forms' => 'Forms', 'reports' => 'Reports', 'kb' => 'Knowledge base', 'costs' => 'Costs & prices', 'import' => 'Bulk import', 'training' => 'Training', 'website' => 'Website (CMS)'];
     public const ROLES = ['manager', 'technician'];
     private const DEFAULTS = [
-        'manager'    => ['dashboard' => 2, 'tickets' => 2, 'board' => 2, 'quotes' => 2, 'clients' => 2, 'assets' => 2, 'network' => 2, 'forms' => 2, 'reports' => 2, 'kb' => 2, 'costs' => 2],
-        'technician' => ['dashboard' => 1, 'tickets' => 2, 'board' => 2, 'quotes' => 1, 'clients' => 1, 'assets' => 2, 'network' => 2, 'forms' => 2, 'reports' => 0, 'kb' => 2, 'costs' => 0],
+        'manager'    => ['dashboard' => 2, 'tickets' => 2, 'board' => 2, 'quotes' => 2, 'clients' => 2, 'assets' => 2, 'network' => 2, 'forms' => 2, 'reports' => 2, 'kb' => 2, 'costs' => 2, 'import' => 2, 'training' => 2, 'website' => 2],
+        'technician' => ['dashboard' => 1, 'tickets' => 2, 'board' => 2, 'quotes' => 1, 'clients' => 1, 'assets' => 2, 'network' => 2, 'forms' => 2, 'reports' => 0, 'kb' => 2, 'costs' => 0, 'import' => 0, 'training' => 2, 'website' => 0],
     ];
     private static ?array $cache = null;
 

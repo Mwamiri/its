@@ -7,13 +7,16 @@ class ItsBase extends BaseController {
     protected $db;
     public function __construct() {
         $this->db = \Config\Database::connect();
-        foreach (['clients','signatures','photos','branding'] as $sub) {
-            $dir = FCPATH . 'uploads/' . $sub;
-            if (!is_dir($dir)) @mkdir($dir, 0775, true);
-        }
+        // One-time storage setup; the .htaccess doubles as the "already done" marker so normal requests make a single file check.
         $ht = FCPATH . 'uploads/.htaccess';
-        if (!file_exists($ht)) @file_put_contents($ht, "<IfModule mod_php.c>\nphp_flag engine off\n</IfModule>\nRemoveHandler .php .phtml .php3 .php4 .php5 .phar\n<FilesMatch \"\\.(?i:php|phtml|phar)$\">\nRequire all denied\n</FilesMatch>\n");
-        if (!is_dir(WRITEPATH . 'backups')) @mkdir(WRITEPATH . 'backups', 0775, true);
+        if (!file_exists($ht)) {
+            foreach (['clients','signatures','photos','branding'] as $sub) {
+                $dir = FCPATH . 'uploads/' . $sub;
+                if (!is_dir($dir)) @mkdir($dir, 0775, true);
+            }
+            if (!is_dir(WRITEPATH . 'backups')) @mkdir(WRITEPATH . 'backups', 0775, true);
+            @file_put_contents($ht, "<IfModule mod_php.c>\nphp_flag engine off\n</IfModule>\nRemoveHandler .php .phtml .php3 .php4 .php5 .phar\n<FilesMatch \"\\.(?i:php|phtml|phar)$\">\nRequire all denied\n</FilesMatch>\n");
+        }
     }
     private ?array $liveUser = null;
     private bool $liveChecked = false;
@@ -40,7 +43,7 @@ class ItsBase extends BaseController {
     }
     protected function needLogin() {
         $u = $this->user();
-        if (!$u) return redirect()->to(base_url('its-install'));
+        if (!$u) return redirect()->to(base_url('its-login'));
         if (($u['role'] ?? '') === 'client') return redirect()->to(base_url('its-portal'));
         if (($u['role'] ?? '') === 'admin' && SettingModel::get('require_2fa_admin', '0') === '1' && !$this->hasTotp($u['id'])) {
             return redirect()->to(base_url('its-security'))->with('err', 'Two-factor authentication is required for administrators. Enable it to continue.');
@@ -55,9 +58,11 @@ class ItsBase extends BaseController {
         }
         return null;
     }
-    protected const MODULES = ['ItsTickets' => 'tickets', 'ItsBoard' => 'board', 'ItsQuotes' => 'quotes', 'ItsClients' => 'clients', 'ItsAssets' => 'assets', 'ItsNetwork' => 'network', 'ItsForms' => 'forms', 'ItsReport' => 'tickets', 'ItsReportBuilder' => 'reports', 'ItsKb' => 'kb'];
+    protected const MODULES = ['ItsTickets' => 'tickets', 'ItsBoard' => 'board', 'ItsQuotes' => 'quotes', 'ItsClients' => 'clients', 'ItsAssets' => 'assets', 'ItsNetwork' => 'network', 'ItsForms' => 'forms', 'ItsReport' => 'tickets', 'ItsReportBuilder' => 'reports', 'ItsKb' => 'kb', 'ItsImport' => 'import', 'ItsTraining' => 'training', 'ItsSite' => 'website'];
+    /** True when the account has any second factor: authenticator app or (v3.5) email codes. */
     protected function hasTotp(int $id): bool {
-        return (int) ($this->db->table('users')->select('totp_enabled')->where('id', $id)->get()->getRow()->totp_enabled ?? 0) === 1;
+        $row = $this->db->table('users')->where('id', $id)->get()->getRowArray() ?? [];
+        return (int) ($row['totp_enabled'] ?? 0) === 1 || (int) ($row['email_2fa'] ?? 0) === 1;
     }
     protected function needClient() {
         $u = $this->user();
@@ -73,9 +78,7 @@ class ItsBase extends BaseController {
         (new AuditModel())->insert(['user_id' => $this->user()['id'] ?? null, 'action' => $a, 'module' => $m, 'details' => $d, 'ip_address' => $this->request->getIPAddress()]);
     }
     protected function seq(string $name, string $prefix): string {
-        $this->db->table('sequences')->where('name', $name)->set('current_value', 'current_value + 1', false)->update();
-        $v = (int) $this->db->table('sequences')->where('name', $name)->get()->getRow()->current_value;
-        return $prefix . date('Ymd') . '-' . str_pad((string) $v, 4, '0', STR_PAD_LEFT);
+        return \App\Libraries\Sequence::next($name, $prefix);
     }
     protected function saveUpload(\CodeIgniter\HTTP\Files\UploadedFile $file, string $sub): ?string {
         if (!$file->isValid() || $file->hasMoved()) return null;

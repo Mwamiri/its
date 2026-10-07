@@ -1,6 +1,6 @@
 <?= view('itsupport/_header') ?>
 <?php
-$adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations' => 'API & Webhooks', 'settings' => 'Branding & Settings', 'templates' => 'Templates', 'reports' => 'Reports', 'mail' => 'Mail', 'maillog' => 'Mail Log', 'maintenance' => 'Maintenance', 'audit' => 'Audit', 'changes' => 'Changes'];
+$adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations' => 'API & Webhooks', 'settings' => 'Branding & Settings', 'fields' => 'Custom fields', 'templates' => 'Templates', 'reports' => 'Reports', 'mail' => 'Mail', 'maillog' => 'Mail Log', 'maintenance' => 'Maintenance', 'audit' => 'Audit', 'changes' => 'Changes'];
 ?>
 <div class="tw-mb-4 tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-rounded-2xl tw-border tw-border-line tw-bg-paper tw-p-2 tw-shadow-sm">
 <div role="tablist" aria-label="Admin sections" class="tw-flex tw-flex-1 tw-gap-1 tw-overflow-x-auto">
@@ -44,7 +44,9 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 <label for="company-email">Company email</label><input id="company-email" type="email" name="company_email" maxlength="190" value="<?= esc(\App\Models\SettingModel::get('company_email','')) ?>">
 <label for="header-tagline">Header subtitle</label><input id="header-tagline" name="header_tagline" maxlength="190" value="<?= esc(\App\Models\SettingModel::get('header_tagline','IT support workspace')) ?>" placeholder="Shown beneath your company name">
 <label for="footer-text">Footer text</label><input id="footer-text" name="footer_text" maxlength="255" value="<?= esc(\App\Models\SettingModel::get('footer_text','CodeIgniter 4 port')) ?>" placeholder="Optional text shown at the bottom of every page">
-<label for="company-logo">Brand logo (PNG, JPEG, GIF, or WebP; max 5 MB)</label><input id="company-logo" type="file" name="company_logo" accept="image/png,image/jpeg,image/gif,image/webp">
+<p class="eyebrow" style="margin-top:14px">Letterhead on printed reports</p>
+<?php foreach (\App\Libraries\Brand::FIELDS as $bk => [$bl, $bmax]) { ?><label for="brand-<?= $bk ?>"><?= esc($bl) ?></label><?php if ($bmax > 200) { ?><textarea id="brand-<?= $bk ?>" name="<?= $bk ?>" maxlength="<?= $bmax ?>" rows="2"><?= esc(\App\Models\SettingModel::get($bk, '')) ?></textarea><?php } else { ?><input id="brand-<?= $bk ?>" name="<?= $bk ?>" maxlength="<?= $bmax ?>" value="<?= esc(\App\Models\SettingModel::get($bk, '')) ?>"><?php } ?><?php } ?>
+<label for="company-logo">Brand logo (PNG, JPEG, GIF, or WebP; max 5 MB). Used in the header and on every printed report.</label><input id="company-logo" type="file" name="company_logo" accept="image/png,image/jpeg,image/gif,image/webp">
 <?php $companyLogo = \App\Models\SettingModel::get('company_logo', ''); if ($companyLogo !== '') { ?><p class="muted">Current logo</p><img src="<?= esc(base_url($companyLogo)) ?>" alt="Current company logo" style="max-width:180px;max-height:90px;object-fit:contain"><p class="muted">Upload a replacement image to update the logo.</p><?php } ?>
 <button class="btn">Save branding</button></form></div>
 <div class="card"><h3>Appearance</h3><p class="muted">Choose a workspace color theme for every screen.</p>
@@ -67,6 +69,30 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 <?php } elseif ($tab === 'mail') { ?>
 <div class="card"><h3>Mail Test</h3><p class="muted">SMTP is configured in .env or via Admin settings.</p>
 <form method="post" action="<?= base_url('its-admin-mail') ?>"><?= csrf_field() ?><label>Test Email</label><input type="email" name="test_email" required><button class="btn">Send Test</button></form></div>
+<?php } elseif ($tab === 'fields') { $ef = $editField ?: []; $cfE = \App\Libraries\CustomFields::ENTITIES; $cfT = \App\Libraries\CustomFields::TYPES; ?>
+<div class="grid grid-2">
+<div class="card"><p class="eyebrow">Flexible data</p><h3><?= $ef ? 'Edit field' : 'Add a custom field' ?></h3>
+<p class="muted">Capture anything your business needs (licence keys, contract numbers, site codes, IP ranges). Fields appear on the add/edit forms, detail pages and printed reports.</p>
+<form method="post" action="<?= base_url('its-admin-fields-save') ?>"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) ($ef['id'] ?? 0) ?>">
+<div class="form-grid">
+<div class="field"><label for="cf-entity">Applies to</label><select id="cf-entity" name="entity" required><?php foreach ($cfE as $k => $l) { ?><option value="<?= $k ?>" <?= ($ef['entity'] ?? '') === $k ? 'selected' : '' ?>><?= esc($l) ?></option><?php } ?></select></div>
+<div class="field"><label for="cf-type">Type</label><select id="cf-type" name="type" required><?php foreach ($cfT as $k => $l) { ?><option value="<?= $k ?>" <?= ($ef['type'] ?? 'text') === $k ? 'selected' : '' ?>><?= esc($l) ?></option><?php } ?></select></div>
+<div class="field"><label for="cf-label">Label</label><input id="cf-label" name="label" maxlength="120" required value="<?= esc($ef['label'] ?? '') ?>" placeholder="e.g. Licence key"></div>
+<div class="field"><label for="cf-key">Key (optional)</label><input id="cf-key" name="field_key" maxlength="40" pattern="[a-z][a-z0-9_]*" value="<?= esc($ef['field_key'] ?? '') ?>" placeholder="auto from label"></div>
+<div class="field wide"><label for="cf-opt">Dropdown options (comma separated)</label><input id="cf-opt" name="options" maxlength="2000" value="<?= esc(implode(', ', json_decode((string) ($ef['options_json'] ?? ''), true) ?: [])) ?>" placeholder="Only for dropdowns, e.g. Gold, Silver, Bronze"></div>
+<div class="field wide"><label for="cf-help">Help text</label><input id="cf-help" name="help" maxlength="255" value="<?= esc($ef['help'] ?? '') ?>"></div>
+<div class="field"><label for="cf-sort">Order</label><input id="cf-sort" type="number" min="0" max="999" name="sort_order" value="<?= (int) ($ef['sort_order'] ?? 0) ?>"></div>
+<div class="field"><label for="cf-act">Status</label><select id="cf-act" name="active"><option value="1">Active</option><option value="0" <?= isset($ef['active']) && !(int) $ef['active'] ? 'selected' : '' ?>>Hidden</option></select></div>
+</div>
+<?php foreach (['required' => 'Required', 'show_in_list' => 'Show as a column in lists', 'show_in_report' => 'Print on reports', 'show_in_portal' => 'Visible to the client in the portal'] as $fk => $fl) { $on = $ef ? !empty($ef[$fk]) : in_array($fk, ['show_in_report'], true); ?><label class="cf-check" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" name="<?= $fk ?>" value="1" <?= $on ? 'checked' : '' ?>> <?= esc($fl) ?></label><?php } ?>
+<div class="form-actions"><button class="btn">Save field</button><?php if ($ef) { ?><a class="button secondary" href="<?= base_url('its-admin?tab=fields') ?>">Cancel</a><?php } ?></div>
+</form></div>
+<div class="card"><h3>Fields</h3>
+<?php if (!$customFields) { ?><p class="muted">No custom fields yet.</p><?php } else { ?><div class="tbl"><table><tr><th>Applies to</th><th>Label</th><th>Type</th><th>Flags</th><th></th></tr>
+<?php foreach ($customFields as $f) { ?><tr><td><?= esc($cfE[$f['entity']] ?? $f['entity']) ?></td><td><?= esc($f['label']) ?><br><code><?= esc($f['field_key']) ?></code></td><td><?= esc($cfT[$f['type']] ?? $f['type']) ?></td>
+<td><?= (int) $f['active'] ? '' : '<span class="badge gray">hidden</span> ' ?><?= $f['required'] ? '<span class="badge orange">required</span> ' : '' ?><?= $f['show_in_list'] ? '<span class="badge blue">list</span> ' : '' ?><?= $f['show_in_report'] ? '<span class="badge green">report</span> ' : '' ?><?= $f['show_in_portal'] ? '<span class="badge blue">portal</span>' : '' ?></td>
+<td><a class="button secondary" href="<?= base_url('its-admin?tab=fields&edit_field=' . $f['id']) ?>">Edit</a></td></tr><?php } ?></table></div><?php } ?>
+</div></div>
 <?php } elseif ($tab === 'templates') { ?>
 <div class="grid grid-2 template-manager">
 <section class="card"><div class="section-heading"><div><p class="eyebrow">WORKFLOW TOOLKIT</p><h3><?= $editTemplate ? 'Edit template' : 'Create a template' ?></h3><p class="muted">Save a reusable starting point for tickets, quotes, or service reports.</p></div></div>

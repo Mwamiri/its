@@ -3,19 +3,25 @@
 use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
-$routes->GET('/', 'Home::index');
+$routes->GET('/', 'Website::index');
 $routes->match(['GET', 'POST'], 'its-install', 'ItsAuth::install');
 $routes->match(['GET', 'POST'], 'its-login', 'ItsAuth::login');
 $routes->POST('its-logout', 'ItsAuth::logout');
 $routes->match(['GET', 'POST'], 'its-2fa', 'ItsAuth::twoFactor');
+$routes->POST('its-2fa-email', 'ItsAuth::twoFactorEmail');
+$routes->GET('its-2fa-link/(:segment)', 'ItsAuth::twoFactorLink/$1');
+$routes->GET('its-modules', 'ItsModules::index');
+$routes->POST('its-modules-toggle', 'ItsModules::toggle');
 $routes->GET('its-security', 'ItsSecurity::index');
 $routes->POST('its-security-enable', 'ItsSecurity::enable');
 $routes->POST('its-security-disable', 'ItsSecurity::disable');
 $routes->POST('its-security-password', 'ItsSecurity::password');
 $routes->POST('its-security-policy', 'ItsSecurity::policy');
+$routes->POST('its-security-email2fa', 'ItsSecurity::emailTwoFactor');
 $routes->POST('its-admin-reset2fa/(:num)', 'ItsSecurity::resetUser2fa/$1');
 $routes->GET('its-dashboard', 'ItsDash::index');
 $routes->GET('its-dashboard-stats', 'ItsDash::stats');
+$routes->POST('its-dashboard-widgets', 'ItsDash::widgets');
 $routes->GET('its-help', 'ItsDash::help');
 $routes->GET('its-features', 'ItsDash::features');
 $routes->GET('its-manifest', 'ItsMisc::manifest');
@@ -23,6 +29,8 @@ $routes->GET('its-manifest', 'ItsMisc::manifest');
 $routes->GET('its-tickets', 'ItsTickets::index');
 $routes->POST('its-tickets-reply/(:num)', 'ItsTickets::reply/$1');
 $routes->GET('its-portal', 'ItsPortal::index');
+$routes->GET('its-portal-assets', 'ItsPortal::assets');
+$routes->GET('its-portal-assets-report', 'ItsPortal::assetReport');
 $routes->match(['GET', 'POST'], 'its-portal-new', 'ItsPortal::create');
 $routes->GET('its-portal-ticket/(:num)', 'ItsPortal::view/$1');
 $routes->POST('its-portal-reply/(:num)', 'ItsPortal::reply/$1');
@@ -31,6 +39,11 @@ $routes->GET('its-tickets-view/(:num)', 'ItsTickets::view/$1');
 $routes->POST('its-tasks/(:num)', 'ItsTickets::addTask/$1');
 
 $routes->GET('its-clients', 'ItsClients::index');
+$routes->GET('its-clients-view/(:num)', 'ItsClients::view/$1');
+$routes->GET('its-clients-assets-report/(:num)', 'ItsClients::assetReport/$1');
+$routes->GET('its-clients-report/(:num)', 'ItsClients::report/$1');
+$routes->GET('its-assets-csv', 'ItsAssets::csv');
+$routes->POST('its-admin-fields-save', 'ItsAdmin::saveField');
 $routes->GET('its-clients-edit/(:num)', 'ItsClients::edit/$1');
 $routes->POST('its-clients-save', 'ItsClients::save');
 $routes->POST('its-clients-save/(:num)', 'ItsClients::save/$1');
@@ -68,6 +81,17 @@ $routes->POST('its-report-builder-save', 'ItsReportBuilder::save');
 $routes->GET('its-report-builder-load/(:segment)', 'ItsReportBuilder::load/$1');
 $routes->POST('its-report-builder-delete/(:segment)', 'ItsReportBuilder::delete/$1');
 
+$routes->GET('its-import', 'ItsImport::index');
+$routes->GET('its-import-template/(:segment)', 'ItsImport::template/$1');
+$routes->POST('its-import-run', 'ItsImport::run');
+$routes->GET('its-training', 'ItsTraining::index');
+$routes->GET('its-training-view/(:num)', 'ItsTraining::view/$1');
+$routes->POST('its-training-save', 'ItsTraining::save');
+$routes->POST('its-training-attendees/(:num)', 'ItsTraining::addAttendee/$1');
+$routes->POST('its-training-mark/(:num)', 'ItsTraining::mark/$1');
+$routes->POST('its-training-remove/(:num)/(:num)', 'ItsTraining::removeAttendee/$1/$2');
+$routes->GET('its-training-csv/(:num)', 'ItsTraining::csv/$1');
+$routes->match(['GET', 'POST'], 'its-attend/(:segment)', 'ItsTraining::attend/$1');
 $routes->GET('its-quotes', 'ItsQuotes::index');
 $routes->GET('its-quotes-view/(:num)', 'ItsQuotes::view/$1');
 $routes->POST('its-quotes-save', 'ItsQuotes::save');
@@ -103,6 +127,9 @@ $routes->POST('its-updates-apply', 'ItsUpdates::apply');
 $routes->POST('its-updates-upload', 'ItsUpdates::upload');
 $routes->POST('its-updates-auto', 'ItsUpdates::toggleAuto');
 $routes->POST('its-updates-clearlog', 'ItsUpdates::clearLog');
+$routes->POST('its-updates-folder-upload', 'ItsUpdates::folderUpload');
+$routes->POST('its-updates-folder-install', 'ItsUpdates::folderInstall');
+$routes->POST('its-updates-folder-delete', 'ItsUpdates::folderDelete');
 
 $routes->GET('its-cron-monthly', 'ItsMisc::cronMonthly');
 $routes->GET('its-cron-weekly', 'ItsMisc::cronWeekly');
@@ -135,3 +162,21 @@ $routes->POST('its-billing-save/(:num)', 'ItsBilling::save/$1');
 $routes->GET('its-billing-csv', 'ItsBilling::csv');
 $routes->POST('its-calendar-token', 'ItsBilling::icalToken');
 $routes->GET('its-calendar.ics', 'ItsBilling::ical');
+
+// Website CMS (staff)
+$routes->GET('its-site', 'ItsSite::index');
+$routes->POST('its-site-page', 'ItsSite::savePage');
+$routes->POST('its-site-page-delete/(:num)', 'ItsSite::deletePage/$1');
+$routes->POST('its-site-item', 'ItsSite::saveItem');
+$routes->POST('its-site-item-delete/(:num)', 'ItsSite::deleteItem/$1');
+$routes->POST('its-site-settings', 'ItsSite::saveSettings');
+$routes->POST('its-site-lead/(:num)', 'ItsSite::lead/$1');
+$routes->POST('its-site-preview', 'ItsSite::preview');
+$routes->POST('its-site-upload', 'ItsSite::upload');
+$routes->POST('its-site-design', 'ItsSite::saveDesign');
+
+// Public website. The catch-all for CMS pages must stay LAST so it never shadows the routes above.
+$routes->GET('sitemap.xml', 'Website::sitemap');
+$routes->GET('robots.txt', 'Website::robots');
+$routes->POST('contact', 'Website::contact');
+$routes->GET('([a-z0-9-]+)', 'Website::page/$1');

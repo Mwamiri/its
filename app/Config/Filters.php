@@ -30,6 +30,7 @@ class Filters extends BaseFilters
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
+        'modulegate'    => \App\Filters\ModuleGate::class,
         'cors'          => Cors::class,
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
@@ -73,12 +74,13 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'csrf' => ['except' => ['api/*']],
+            'csrf' => ['except' => ['api/*', 'its-site-preview']], // the builder preview only renders, never saves
+            'modulegate', // switched-off modules (v3.5)
             // 'invalidchars',
         ],
         'after' => [
             // 'honeypot',
-            // 'secureheaders',
+            'secureheaders', // X-Frame-Options, nosniff, Referrer-Policy (v2.1.1)
         ],
     ];
 

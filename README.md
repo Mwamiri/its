@@ -1,6 +1,6 @@
 # Mwamiri IT Support
 
-A self-hosted IT support and field-service platform built on **CodeIgniter 4.7** (PHP 8.2+, MySQL/MariaDB). It manages clients, equipment, tickets and quotes, with a client portal, a Kanban board, network monitoring, billing and enterprise security. Current version: **2.1.0**.
+A self-hosted IT support and field-service platform built on **CodeIgniter 4.7** (PHP 8.2+, MySQL/MariaDB). It manages clients, equipment, tickets and quotes, with a client portal, a Kanban board, network monitoring, billing and enterprise security. Current version: **3.5.0** (see [RELEASES.md](RELEASES.md)).
 
 ## Features
 

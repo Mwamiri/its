@@ -172,6 +172,7 @@ html[data-mode=dark] input,html[data-mode=dark] select,html[data-mode=dark] text
 .form-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line);margin-top:4px}
 .char-count{font-size:11px;color:var(--muted);text-align:end;margin:-10px 0 10px}
 button[data-busy]{opacity:.7;pointer-events:none}
+.nav-ico{display:inline-block;width:1.4em;text-align:center;margin-inline-end:6px;font-size:14px}.nav-count{margin-inline-start:auto;min-width:20px;padding:0 6px;border-radius:999px;background:var(--brand);color:#fff;font:700 11px/19px sans-serif;text-align:center}nav .nav-menu a{display:flex;align-items:center}
 .card>h3:first-child{margin-top:0}#ui-language{width:auto;min-width:130px;margin:0;padding-block:7px}.ui-toolbar select{margin:0}
 </style></head><body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -187,57 +188,72 @@ $headerTagline = \App\Models\SettingModel::get('header_tagline', 'IT support wor
 </div>
 <?php $u = session('its_user'); if ($u) { ?>
 <?php
-$activeRoute = service('uri')->getSegment(1);
+$activeRoute = (string) service('uri')->getSegment(1);
+$navRole = (string) ($u['role'] ?? '');
+$isAdmin = $navRole === 'admin';
+$on = static fn(string ...$prefixes): bool => (bool) array_filter($prefixes, static fn(string $p): bool => $activeRoute === $p || str_starts_with($activeRoute, $p . '-'));
+// v3 menu: grouped by job; every item is filtered by the role's permissions below.
 $navGroups = [
-    ['label' => 'Work', 'items' => [
-        ['label' => 'Dashboard', 'url' => 'its-dashboard', 'active' => $activeRoute === 'its-dashboard'],
-        ['label' => 'Tickets', 'url' => 'its-tickets', 'active' => str_starts_with($activeRoute, 'its-tickets') || $activeRoute === 'its-report'],
-        ['label' => 'Board', 'url' => 'its-board', 'active' => $activeRoute === 'its-board'],
-        ['label' => 'Quotes', 'url' => 'its-quotes', 'active' => str_starts_with($activeRoute, 'its-quotes')],
+    ['label' => 'Overview', 'items' => [
+        ['label' => 'Dashboard', 'url' => 'its-dashboard', 'icon' => '🏠', 'active' => $on('its-dashboard')],
+    ]],
+    ['label' => 'Service desk', 'items' => [
+        ['label' => 'Tickets', 'url' => 'its-tickets', 'icon' => '🎫', 'active' => $on('its-tickets') || $activeRoute === 'its-report'],
+        ['label' => 'Board', 'url' => 'its-board', 'icon' => '🗂', 'active' => $on('its-board')],
+        ['label' => 'Quotes', 'url' => 'its-quotes', 'icon' => '🧾', 'active' => $on('its-quotes')],
+        ['label' => 'Knowledge Base', 'url' => 'its-kb', 'icon' => '📚', 'active' => $on('its-kb')],
     ]],
     ['label' => 'Customers', 'items' => [
-        ['label' => 'Clients', 'url' => 'its-clients', 'active' => str_starts_with($activeRoute, 'its-clients')],
-        ['label' => 'Assets', 'url' => 'its-assets', 'active' => str_starts_with($activeRoute, 'its-assets')],
+        ['label' => 'Clients', 'url' => 'its-clients', 'icon' => '🏢', 'active' => $on('its-clients')],
+        ['label' => 'Assets', 'url' => 'its-assets', 'icon' => '💻', 'active' => $on('its-assets')],
+        ['label' => 'Training', 'url' => 'its-training', 'icon' => '🎓', 'active' => $on('its-training')],
     ]],
-    ['label' => 'IT Operations', 'items' => [
-        ['label' => 'Network', 'url' => 'its-network', 'active' => $activeRoute === 'its-network'],
-        ['label' => 'Forms', 'url' => 'its-forms', 'active' => str_starts_with($activeRoute, 'its-form')],
+    ['label' => 'Operations', 'items' => [
+        ['label' => 'Network', 'url' => 'its-network', 'icon' => '🛰', 'active' => $on('its-network')],
+        ['label' => 'Forms', 'url' => 'its-forms', 'icon' => '📝', 'active' => $on('its-forms', 'its-form')],
     ]],
 ];
-if (($u['role'] ?? '') === 'admin') {
-    $navGroups[] = ['label' => 'Insights & Admin', 'items' => [
-        ['label' => 'Reports', 'url' => 'its-report-builder', 'active' => str_starts_with($activeRoute, 'its-report-builder')],
-        ['label' => 'Admin', 'url' => 'its-admin', 'active' => str_starts_with($activeRoute, 'its-admin')],
-        ['label' => 'Updates', 'url' => 'its-updates', 'active' => str_starts_with($activeRoute, 'its-updates')],
-        ['label' => 'Billing', 'url' => 'its-billing', 'active' => str_starts_with($activeRoute, 'its-billing')],
-        ['label' => 'Health', 'url' => 'its-health', 'active' => $activeRoute === 'its-health'],
+if ($isAdmin) {
+    $navGroups[] = ['label' => 'Insights', 'items' => [
+        ['label' => 'Reports', 'url' => 'its-report-builder', 'icon' => '📊', 'active' => $on('its-report-builder')],
+        ['label' => 'Billing', 'url' => 'its-billing', 'icon' => '💳', 'active' => $on('its-billing')],
     ]];
 }
-$navGroups[] = ['label' => 'Resources', 'items' => [
-    ['label' => 'Knowledge Base', 'url' => 'its-kb', 'active' => str_starts_with($activeRoute, 'its-kb')],
-    ['label' => 'Security', 'url' => 'its-security', 'active' => str_starts_with($activeRoute, 'its-security')],
-    ['label' => 'Features', 'url' => 'its-features', 'active' => $activeRoute === 'its-features'],
-    ['label' => 'Help', 'url' => 'its-help', 'active' => $activeRoute === 'its-help'],
+$systemItems = [['label' => 'Website', 'url' => 'its-site', 'icon' => '🌐', 'active' => $on('its-site')], ['label' => 'Import', 'url' => 'its-import', 'icon' => '📥', 'active' => $on('its-import')]];
+if ($isAdmin) array_push($systemItems,
+    ['label' => 'Admin', 'url' => 'its-admin', 'icon' => '⚙️', 'active' => $on('its-admin')],
+    ['label' => 'Updates', 'url' => 'its-updates', 'icon' => '⬆️', 'active' => $on('its-updates')],
+    ['label' => 'Modules', 'url' => 'its-modules', 'icon' => '🧩', 'active' => $on('its-modules')],
+    ['label' => 'Health', 'url' => 'its-health', 'icon' => '🩺', 'active' => $on('its-health')]);
+$navGroups[] = ['label' => 'System', 'items' => $systemItems];
+$navGroups[] = ['label' => 'Help & account', 'items' => [
+    ['label' => 'Security', 'url' => 'its-security', 'icon' => '🔐', 'active' => $on('its-security')],
+    ['label' => 'Help', 'url' => 'its-help', 'icon' => '❓', 'active' => $on('its-help')],
+    ['label' => 'Features', 'url' => 'its-features', 'icon' => '✨', 'active' => $on('its-features')],
 ]];
-if (($u['role'] ?? '') === 'client') {
+if ($navRole === 'client') {
 $navGroups = [['label' => 'My Support', 'items' => [
-    ['label' => 'My Tickets', 'url' => 'its-portal', 'active' => in_array($activeRoute, ['its-portal', 'its-portal-ticket'], true)],
-    ['label' => 'Report an Issue', 'url' => 'its-portal-new', 'active' => $activeRoute === 'its-portal-new'],
-    ['label' => 'Help articles', 'url' => 'its-portal-kb', 'active' => $activeRoute === 'its-portal-kb'],
+    ['label' => 'Dashboard', 'url' => 'its-portal', 'icon' => '🏠', 'active' => in_array($activeRoute, ['its-portal', 'its-portal-ticket'], true)],
+    ['label' => 'Report an Issue', 'url' => 'its-portal-new', 'icon' => '➕', 'active' => $activeRoute === 'its-portal-new'],
+    ['label' => 'My Equipment', 'url' => 'its-portal-assets', 'icon' => '💻', 'active' => $on('its-portal-assets')],
+    ['label' => 'Help articles', 'url' => 'its-portal-kb', 'icon' => '📚', 'active' => $activeRoute === 'its-portal-kb'],
 ]]];
 }
-$navMod = ['its-dashboard' => 'dashboard', 'its-tickets' => 'tickets', 'its-board' => 'board', 'its-quotes' => 'quotes', 'its-clients' => 'clients', 'its-assets' => 'assets', 'its-network' => 'network', 'its-forms' => 'forms', 'its-report-builder' => 'reports', 'its-kb' => 'kb'];
-$navRole = (string) ($u['role'] ?? '');
+$navMod = ['its-dashboard' => 'dashboard', 'its-tickets' => 'tickets', 'its-board' => 'board', 'its-quotes' => 'quotes', 'its-clients' => 'clients', 'its-assets' => 'assets', 'its-network' => 'network', 'its-forms' => 'forms', 'its-report-builder' => 'reports', 'its-kb' => 'kb', 'its-import' => 'import', 'its-training' => 'training', 'its-site' => 'website'];
+$navCan = static fn(string $url): bool => \App\Libraries\Modules::enabled((string) \App\Libraries\Modules::forPath($url))
+    && ($navRole === 'client' || !isset($navMod[$url]) || \App\Libraries\Perm::can($navRole, $navMod[$url], 1));
 foreach ($navGroups as $gi => $g) {
-    $navGroups[$gi]['items'] = array_values(array_filter($g['items'], static fn(array $i): bool => !isset($navMod[$i['url']]) || \App\Libraries\Perm::can($navRole, $navMod[$i['url']], 1)));
+    $navGroups[$gi]['items'] = array_values(array_filter($g['items'], static fn(array $i): bool => $navCan($i['url'])));
     if (!$navGroups[$gi]['items']) unset($navGroups[$gi]);
 }
+$navCounts = [];
 $alerts = 0; $alertTickets = []; $alertDevices = [];
 if ($navRole !== 'client') {
     try {
         $db = \Config\Database::connect();
         $alertTickets = $db->table('tickets')->select('id,ticket_number,subject,due_at')->whereNotIn('status', ['completed', 'closed'])->where('due_at <', date('Y-m-d H:i:s'))->orderBy('due_at', 'ASC')->limit(6)->get()->getResultArray();
         $alertDevices = $db->table('network_devices')->select('id,name,ip_address')->where('monitor_enabled', 1)->where('monitor_state', 'offline')->limit(6)->get()->getResultArray();
+        $navCounts['its-tickets'] = $db->table('tickets')->where('assigned_to', (int) ($u['id'] ?? 0))->whereNotIn('status', ['completed', 'closed'])->countAllResults();
         $alerts = $db->table('tickets')->whereNotIn('status', ['completed', 'closed'])->where('due_at <', date('Y-m-d H:i:s'))->countAllResults()
             + $db->table('network_devices')->where('monitor_enabled', 1)->where('monitor_state', 'offline')->countAllResults();
     } catch (\Throwable $e) { $alerts = 0; }
@@ -246,7 +262,7 @@ if ($navRole !== 'client') {
 <nav aria-label="Main navigation">
 <?php foreach ($navGroups as $group) { $groupActive = count(array_filter($group['items'], static fn(array $item): bool => $item['active'])) > 0; ?>
 <details class="nav-group<?= $groupActive ? ' is-active' : '' ?>"><summary data-i18n="<?= esc($group['label']) ?>"><?= esc($group['label']) ?></summary><div class="nav-menu">
-<?php foreach ($group['items'] as $item) { ?><a href="<?= base_url($item['url']) ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?> data-i18n="<?= esc($item['label']) ?>"><?= esc($item['label']) ?></a><?php } ?>
+<?php foreach ($group['items'] as $item) { $cnt = (int) ($navCounts[$item['url']] ?? 0); ?><a href="<?= base_url($item['url']) ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?>><span class="nav-ico" aria-hidden="true"><?= $item['icon'] ?? '' ?></span><span data-i18n="<?= esc($item['label']) ?>"><?= esc($item['label']) ?></span><?php if ($cnt) { ?><span class="nav-count" title="Assigned to you and open"><?= $cnt > 99 ? '99+' : $cnt ?></span><?php } ?></a><?php } ?>
 </div></details>
 <?php } ?>
 <?php if ($navRole !== 'client') { ?><button type="button" id="cmd-open" class="nav-extra" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">🔍 <span data-i18n="Search">Search</span></button>
@@ -254,7 +270,13 @@ if ($navRole !== 'client') {
 <button type="button" class="mode-toggle nav-extra" data-mode-toggle aria-pressed="false" aria-label="Switch to dark mode" data-i18n="Dark mode">Dark mode</button>
 <form class="nav-extra" method="post" action="<?= base_url('its-logout') ?>"><?= csrf_field() ?><button data-i18n="Logout">Logout</button></form>
 </nav>
-<?php if ($navRole !== 'client') { ?><div class="tabbar" role="navigation" aria-label="Quick navigation"><a href="<?= base_url('its-dashboard') ?>" <?= $activeRoute === 'its-dashboard' ? 'aria-current="page"' : '' ?>><span aria-hidden="true">🏠</span>Home</a><a href="<?= base_url('its-tickets') ?>" <?= str_starts_with($activeRoute, 'its-tickets') ? 'aria-current="page"' : '' ?>><span aria-hidden="true">🎫</span>Tickets</a><a href="<?= base_url('its-board') ?>"><span aria-hidden="true">🗂</span>Board</a><a href="<?= base_url('its-assets') ?>"><span aria-hidden="true">💻</span>Assets</a><button type="button" data-cmd-open><span aria-hidden="true">🔍</span>Search</button></div><?php } ?>
+<?php
+$tabs = $navRole === 'client'
+    ? [['its-portal', '🏠', 'Home'], ['its-portal-new', '➕', 'Report'], ['its-portal-assets', '💻', 'Equipment'], ['its-portal-kb', '📚', 'Help']]
+    : array_values(array_filter([['its-dashboard', '🏠', 'Home'], ['its-tickets', '🎫', 'Tickets'], ['its-board', '🗂', 'Board'], ['its-assets', '💻', 'Assets'], ['its-clients', '🏢', 'Clients']], static fn($t) => $navCan($t[0])));
+$tabs = array_slice($tabs, 0, $navRole === 'client' ? 4 : 4);
+?>
+<div class="tabbar" role="navigation" aria-label="Quick navigation"><?php foreach ($tabs as [$tu, $ti, $tl]) { ?><a href="<?= base_url($tu) ?>" <?= ($activeRoute === $tu || str_starts_with($activeRoute, $tu . '-')) && !($tu === 'its-portal' && $activeRoute === 'its-portal-new') ? 'aria-current="page"' : '' ?>><span aria-hidden="true"><?= $ti ?></span><?= esc($tl) ?></a><?php } ?><?php if ($navRole !== 'client') { ?><button type="button" data-cmd-open><span aria-hidden="true">🔍</span>Search</button><?php } ?></div>
 <div class="appbar">
 <?php if ($navRole !== 'client') { ?><button type="button" class="ab-search" data-cmd-open aria-label="Search (Ctrl+K)"><span aria-hidden="true">🔍</span> <span data-i18n="Search">Search</span> <kbd>Ctrl K</kbd></button><?php } else { ?><span></span><?php } ?>
 <?php if ($navRole !== 'client') { ?><details class="ab-menu ab-bell"><summary aria-label="<?= $alerts ?> notifications"><span aria-hidden="true">🔔</span><?php if ($alerts) { ?><span class="ab-dot"><?= $alerts > 99 ? '99+' : $alerts ?></span><?php } ?></summary>

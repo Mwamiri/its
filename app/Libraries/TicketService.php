@@ -15,14 +15,15 @@ class TicketService
         $priority = in_array($in['priority'] ?? '', self::PRIORITIES, true) ? $in['priority'] : 'medium';
         $type = in_array($in['ticket_type'] ?? '', self::TYPES, true) ? $in['ticket_type'] : 'incident';
         $db = \Config\Database::connect();
-        $db->table('sequences')->where('name', 'ticket')->set('current_value', 'current_value + 1', false)->update();
-        $v = (int) $db->table('sequences')->where('name', 'ticket')->get()->getRow()->current_value;
-        $number = 'TCK-' . date('Ymd') . '-' . str_pad((string) $v, 4, '0', STR_PAD_LEFT);
+        $number = Sequence::next('ticket', 'TCK-');
         $row = [
             'ticket_number' => $number, 'client_id' => (int) $in['client_id'], 'subject' => (string) $in['subject'],
             'description' => (string) ($in['description'] ?? ''), 'priority' => $priority, 'status' => 'new',
             'ticket_type' => $type, 'visit_date' => $in['visit_date'] ?? date('Y-m-d'),
         ] + Sla::dueFor($priority);
+        // Optional link to one of the same client's assets (v3); ignored if it belongs to someone else.
+        $assetId = (int) ($in['asset_id'] ?? 0);
+        if ($assetId && $db->fieldExists('asset_id', 'tickets') && $db->table('assets')->where('id', $assetId)->where('client_id', $row['client_id'])->countAllResults()) $row['asset_id'] = $assetId;
         $id = (new TicketModel())->insert($row);
         Webhooks::fire('ticket.created', ['id' => (int) $id, 'number' => $number, 'client_id' => $row['client_id'], 'subject' => $row['subject'], 'priority' => $priority, 'type' => $type]);
         return (int) $id;

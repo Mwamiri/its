@@ -10,7 +10,8 @@ use JsonException;
 
 class ItsForms extends ItsBase
 {
-    private const FIELD_TYPES = ['text', 'textarea', 'number', 'email', 'phone', 'date', 'url', 'select', 'radio', 'checkbox', 'file'];
+    private const FIELD_TYPES = ['text', 'textarea', 'number', 'email', 'phone', 'date', 'url', 'select', 'radio', 'checkbox', 'file', 'section'];
+    private const MAX_FIELDS = 40;
     private const UPLOAD_TYPES = [
         'application/pdf' => 'pdf',
         'image/jpeg' => 'jpg',
@@ -31,6 +32,7 @@ class ItsForms extends ItsBase
         $query = $formModel->orderBy('title');
         if (!$isAdmin) {
             $query->where('active', 1);
+            if ($this->db->fieldExists('audience', 'custom_forms')) $query->whereIn('audience', ['staff', 'both']);
         }
         $forms = $query->findAll();
         $editId = $isAdmin ? $this->getInt('edit') : 0;
@@ -46,6 +48,10 @@ class ItsForms extends ItsBase
             'isAdmin' => $isAdmin,
             'editForm' => $editForm,
             'formFields' => $this->decodeFields($editForm['fields_json'] ?? ''),
+            'formSettings' => $editForm ? $this->formSettings($editForm) : ['confirmation' => '', 'notify' => '', 'audience' => 'staff'],
+            'hasAudience' => $this->db->fieldExists('audience', 'custom_forms'),
+            'fieldTypes' => self::FIELD_TYPES,
+            'maxFields' => self::MAX_FIELDS,
             'fieldCounts' => $fieldCounts,
             'submissionCount' => (new FormSubmissionModel())->countAllResults(),
         ]);
@@ -81,6 +87,12 @@ class ItsForms extends ItsBase
             'active' => $this->request->getPost('active') === '1' ? 1 : 0,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+        if ($this->db->fieldExists('audience', 'custom_forms')) {
+            $audience = (string) $this->request->getPost('audience');
+            $emails = array_values(array_filter(array_map('trim', explode(',', $this->postText('notify', 500))), static fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL)));
+            $data['audience'] = in_array($audience, ['staff', 'clients', 'both'], true) ? $audience : 'staff';
+            $data['settings_json'] = json_encode(['confirmation' => $this->postText('confirmation', 500), 'notify' => implode(', ', array_slice($emails, 0, 10))], JSON_UNESCAPED_UNICODE);
+        }
 
         if ($formId) {
             if (!$model->find($formId)) {
@@ -118,19 +130,30 @@ class ItsForms extends ItsBase
 
     public function submit(int $id)
     {
-        if ($response = $this->needLogin()) {
+        $user = $this->user();
+        if (!$user) {
+            return redirect()->to(base_url('its-login'));
+        }
+        // Client portal users may fill forms published to clients; staff go through the normal role checks.
+        $isClient = ($user['role'] ?? '') === 'client';
+        if (!$isClient && ($response = $this->needLogin())) {
             return $response;
         }
+        $home = $isClient ? 'its-portal' : 'its-forms';
 
         $form = (new CustomFormModel())->find($id);
-        if (!$form || (!(int) $form['active'] && ($this->user()['role'] ?? '') !== 'admin')) {
-            return redirect()->to(base_url('its-forms'))->with('err', 'That form is unavailable.');
+        $settings = $form ? $this->formSettings($form) : null;
+        $allowed = $form && (($user['role'] ?? '') === 'admin' || ((int) $form['active'] && ($isClient
+            ? in_array($settings['audience'], ['clients', 'both'], true) && !empty($user['client_id'])
+            : in_array($settings['audience'], ['staff', 'both'], true))));
+        if (!$allowed) {
+            return redirect()->to(base_url($home))->with('err', 'That form is unavailable.');
         }
 
         $fields = $this->decodeFields($form['fields_json']);
         if (!$fields) {
             log_message('error', 'Form {id} has an invalid field definition.', ['id' => $id]);
-            return redirect()->to(base_url('its-forms'))->with('err', 'This form is unavailable because its definition is invalid.');
+            return redirect()->to(base_url($home))->with('err', 'This form is unavailable because its definition is invalid.');
         }
 
         $answers = [];
@@ -143,6 +166,15 @@ class ItsForms extends ItsBase
             $files = $this->request->getFiles();
 
             foreach ($fields as $field) {
+                if ($field['type'] === 'section') {
+                    continue;
+                }
+                // Fields hidden by a "show if" rule are neither validated nor stored.
+                if (!$this->fieldVisible($field, $submitted)) {
+                    $answers[$field['key']] = '';
+                    $submitted[$field['key']] = '';
+                    continue;
+                }
                 $raw = $rawAnswers[$field['key']] ?? '';
                 if ($field['type'] === 'checkbox') {
                     $value = is_string($raw) && in_array($raw, ['1', 'yes', 'on'], true) ? 'Yes' : 'No';
@@ -219,12 +251,16 @@ class ItsForms extends ItsBase
 
             if (!$errors) {
                 try {
-                    $submissionId = (new FormSubmissionModel())->insert([
+                    $row = [
                         'form_id' => $id,
                         'submitted_by' => (int) $this->user()['id'],
                         'answers_json' => $answersJson,
                         'submitted_at' => date('Y-m-d H:i:s'),
-                    ]);
+                    ];
+                    if ($isClient && $this->db->fieldExists('client_id', 'form_submissions')) {
+                        $row['client_id'] = (int) $user['client_id'];
+                    }
+                    $submissionId = (new FormSubmissionModel())->insert($row);
                     if (!$submissionId) {
                         $this->discardUploads($storedFiles);
                         log_message('error', 'Form submission insert returned no ID for form {id}.', ['id' => $id]);
@@ -243,8 +279,9 @@ class ItsForms extends ItsBase
             }
 
             if (!$errors) {
-                    $this->audit('form_submitted', 'forms', 'Form ID ' . $id);
-                    return redirect()->to(base_url('its-forms'))->with('ok', 'Your response has been submitted.');
+                $this->audit('form_submitted', 'forms', 'Form ID ' . $id);
+                $this->notifySubmission($form, $settings, $fields, $answers, (int) $submissionId);
+                return redirect()->to(base_url($home))->with('ok', $settings['confirmation'] !== '' ? $settings['confirmation'] : 'Your response has been submitted.');
             }
 
             $this->response->setHeader('Cache-Control', 'no-store, private');
@@ -256,7 +293,30 @@ class ItsForms extends ItsBase
             'fields' => $fields,
             'errors' => $errors,
             'submitted' => $submitted,
+            'home' => $home,
         ]);
+    }
+
+    /** Emails the addresses configured on the form with a summary of the new response. */
+    private function notifySubmission(array $form, array $settings, array $fields, array $answers, int $submissionId): void
+    {
+        $to = array_filter(array_map('trim', explode(',', $settings['notify'])));
+        if (!$to) return;
+        $rows = '';
+        foreach ($fields as $f) {
+            if ($f['type'] === 'section') continue;
+            $v = $answers[$f['key']] ?? '';
+            $v = is_array($v) ? ($v['original_name'] ?? 'file') . ' (attachment)' : (string) $v;
+            if ($v === '') continue;
+            $rows .= '<tr><th style="text-align:left;border:1px solid #ddd;padding:6px;background:#f8fafc">' . esc($f['label']) . '</th><td style="border:1px solid #ddd;padding:6px">' . nl2br(esc($v)) . '</td></tr>';
+        }
+        $who = $this->user()['name'] ?? 'Someone';
+        $html = '<h2 style="font-family:Arial">' . esc($form['title']) . '</h2><p style="font-family:Arial">New response #' . $submissionId . ' from ' . esc($who) . ' on ' . date('Y-m-d H:i') . '.</p><table style="border-collapse:collapse;font-family:Arial;font-size:13px">' . $rows . '</table><p style="font-family:Arial"><a href="' . base_url('its-form-reports?form_id=' . (int) $form['id']) . '">View all responses</a></p>';
+        try {
+            (new \App\Libraries\MailLib())->send($to, 'New response: ' . $form['title'], $html);
+        } catch (\Throwable $e) {
+            log_message('error', 'Form notification failed: {m}', ['m' => $e->getMessage()]);
+        }
     }
 
     public function reports()
@@ -294,7 +354,9 @@ class ItsForms extends ItsBase
         $export = $this->request->getGet('export') === 'csv';
         $rows = $query->limit($export ? 10000 : 500)->get()->getResultArray();
         if ($export) {
-            return $this->exportCsv($rows);
+            // A single form exports one column per field; mixed forms fall back to a JSON column.
+            $form = $formId ? (new CustomFormModel())->find($formId) : null;
+            return $this->exportCsv($rows, $form ? array_values(array_filter($this->decodeFields($form['fields_json']), static fn($f) => $f['type'] !== 'section')) : []);
         }
 
         return view('itsupport/form_reports', [
@@ -357,24 +419,26 @@ class ItsForms extends ItsBase
 
         $fields = [];
         $keys = [];
-        foreach (array_slice($input, 0, 30) as $rawField) {
+        foreach (array_slice(array_values($input), 0, self::MAX_FIELDS) as $rawField) {
             if (!is_array($rawField)) {
                 continue;
             }
-            $keyValue = $rawField['key'] ?? '';
-            $labelValue = $rawField['label'] ?? '';
-            $typeValue = $rawField['type'] ?? '';
-            $optionValue = $rawField['options'] ?? '';
-            if (!is_string($keyValue) || !is_string($labelValue) || !is_string($typeValue) || !is_string($optionValue)) {
-                return null;
+            $str = static fn(string $k): string => is_string($rawField[$k] ?? null) ? trim($rawField[$k]) : '';
+            $label = mb_substr($str('label'), 0, 160);
+            $type = $str('type');
+            $optionValue = $str('options');
+            if ($label === '') {
+                continue; // blank rows are ignored
             }
-            $key = strtolower(trim($keyValue));
-            $label = mb_substr(trim($labelValue), 0, 120);
-            $type = trim($typeValue);
-            if ($key === '' && $label === '' && $type === '') {
-                continue;
+            // Keys are optional in the v3 builder: derive one from the label and keep it unique.
+            $key = strtolower($str('key'));
+            if ($key === '') {
+                $base = substr(trim((string) preg_replace('/[^a-z0-9]+/', '_', strtolower($label)), '_'), 0, 34);
+                $base = preg_match('/^[a-z]/', $base) ? $base : 'f_' . $base;
+                $key = $base; $i = 2;
+                while (isset($keys[$key])) $key = $base . '_' . $i++;
             }
-            if (!preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) || $label === '' || !in_array($type, self::FIELD_TYPES, true) || isset($keys[$key])) {
+            if (!preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key) || !in_array($type, self::FIELD_TYPES, true) || isset($keys[$key])) {
                 return null;
             }
 
@@ -388,17 +452,43 @@ class ItsForms extends ItsBase
                     return null;
                 }
             }
+            $showIf = null;
+            $condField = strtolower($str('show_if_field'));
+            if ($condField !== '' && isset($keys[$condField])) {
+                $showIf = ['field' => $condField, 'value' => mb_substr($str('show_if_value'), 0, 100)];
+            }
             $fields[] = [
                 'key' => $key,
                 'label' => $label,
                 'type' => $type,
-                'required' => ($rawField['required'] ?? '') === '1',
+                'required' => $type !== 'section' && ($rawField['required'] ?? '') === '1',
                 'options' => $options,
+                'help' => mb_substr($str('help'), 0, 300),
+                'placeholder' => mb_substr($str('placeholder'), 0, 120),
+                'width' => $str('width') === 'half' ? 'half' : 'full',
+                'show_if' => $showIf,
             ];
             $keys[$key] = true;
         }
 
-        return $fields && count($input) <= 30 ? $fields : null;
+        return $fields && count($input) <= self::MAX_FIELDS ? $fields : null;
+    }
+
+    /** Whether a field is visible given the answers so far (conditional "show if" rules). */
+    private function fieldVisible(array $field, array $values): bool
+    {
+        $rule = $field['show_if'] ?? null;
+        if (!is_array($rule) || empty($rule['field'])) return true;
+        $actual = (string) ($values[$rule['field']] ?? '');
+        return $rule['value'] === '' ? $actual !== '' && $actual !== 'No' : $actual === $rule['value'];
+    }
+
+    /** Form-level options: who can fill it, confirmation text and who is emailed on each response. */
+    private function formSettings(array $form): array
+    {
+        $s = json_decode((string) ($form['settings_json'] ?? ''), true);
+        $s = is_array($s) ? $s : [];
+        return ['confirmation' => (string) ($s['confirmation'] ?? ''), 'notify' => (string) ($s['notify'] ?? ''), 'audience' => in_array($form['audience'] ?? 'staff', ['staff', 'clients', 'both'], true) ? ($form['audience'] ?? 'staff') : 'staff'];
     }
 
     private function decodeFields(string $json): array
@@ -408,7 +498,7 @@ class ItsForms extends ItsBase
         } catch (JsonException $exception) {
             return [];
         }
-        if (!is_array($fields) || count($fields) > 30) {
+        if (!is_array($fields) || count($fields) > self::MAX_FIELDS) {
             return [];
         }
         foreach ($fields as $field) {
@@ -422,7 +512,8 @@ class ItsForms extends ItsBase
                 return [];
             }
         }
-        return $fields;
+        // Forms saved before v3 lack the newer properties; fill defaults so they keep working unchanged.
+        return array_map(static fn(array $f): array => $f + ['options' => [], 'required' => false, 'help' => '', 'placeholder' => '', 'width' => 'full', 'show_if' => null], array_values($fields));
     }
 
     private function validAnswer(array $field, string $value): bool
@@ -444,7 +535,7 @@ class ItsForms extends ItsBase
         return $date !== false && $date->format('Y-m-d') === $value;
     }
 
-    private function exportCsv(array $rows)
+    private function exportCsv(array $rows, array $fields = [])
     {
         $stream = fopen('php://temp', 'w+b');
         if ($stream === false) {
@@ -452,15 +543,23 @@ class ItsForms extends ItsBase
             return redirect()->to(base_url('its-form-reports'))->with('err', 'The CSV export could not be created.');
         }
 
-        fputcsv($stream, ['Submission ID', 'Form', 'Submitted At', 'Submitted By', 'Answers (JSON)'], ',', '"', '');
+        fputcsv($stream, array_merge(['Submission ID', 'Form', 'Submitted At', 'Submitted By'], $fields ? array_column($fields, 'label') : ['Answers (JSON)']), ',', '"', '');
         foreach ($rows as $row) {
             $values = [
                 (string) $row['id'],
                 (string) $row['form_title'],
                 (string) $row['submitted_at'],
                 (string) ($row['submitter_name'] ?? 'Unknown'),
-                (string) $row['answers_json'],
             ];
+            if ($fields) {
+                $answers = json_decode((string) $row['answers_json'], true) ?: [];
+                foreach ($fields as $f) {
+                    $v = $answers[$f['key']] ?? '';
+                    $values[] = is_array($v) ? (string) ($v['original_name'] ?? '') : (string) $v;
+                }
+            } else {
+                $values[] = (string) $row['answers_json'];
+            }
             fputcsv($stream, array_map($this->spreadsheetSafe(...), $values), ',', '"', '');
         }
         rewind($stream);

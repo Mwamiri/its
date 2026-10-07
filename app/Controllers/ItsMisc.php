@@ -16,17 +16,25 @@ class ItsMisc extends ItsBase {
         if (!$row) return $this->response->setStatusCode(404)->setBody('Not found');
         return $this->response->setContentType('image/svg+xml')->setBody((new Qr())->svg(base_url('its-assets-view/' . $id)));
     }
+    /** Cron URLs need the install's cron token; an unset token never matches and the comparison is constant-time. */
+    private function cronAllowed(): bool {
+        $expected = (string) $this->setting('cron_token', '');
+        return $expected !== '' && hash_equals($expected, (string) ($this->request->getGet('token') ?? ''));
+    }
     public function cronMonthly() {
-        if (($this->request->getGet('token') ?? '') !== $this->setting('cron_token', '')) return $this->response->setStatusCode(403)->setBody('Forbidden');
-        $ym = $this->request->getGet('ym') ?: date('Y-m');
+        if (!$this->cronAllowed()) return $this->response->setStatusCode(403)->setBody('Forbidden');
+        $ym = (string) ($this->request->getGet('ym') ?: date('Y-m'));
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $ym)) return $this->response->setStatusCode(422)->setBody('ym must be YYYY-MM');
         return $this->response->setBody(service('reportlib')->sendMonthly($ym) ? 'Sent ' . $ym : 'Not sent');
     }
     public function cronWeekly() {
-        if (($this->request->getGet('token') ?? '') !== $this->setting('cron_token', '')) return $this->response->setStatusCode(403)->setBody('Forbidden');
-        return $this->response->setBody(service('reportlib')->sendWeekly($this->request->getGet('ymd') ?: date('Y-m-d', strtotime('last monday'))) ? 'Sent' : 'Not sent');
+        if (!$this->cronAllowed()) return $this->response->setStatusCode(403)->setBody('Forbidden');
+        $ymd = (string) ($this->request->getGet('ymd') ?: date('Y-m-d', strtotime('last monday')));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd) || !strtotime($ymd)) return $this->response->setStatusCode(422)->setBody('ymd must be YYYY-MM-DD');
+        return $this->response->setBody(service('reportlib')->sendWeekly($ymd) ? 'Sent' : 'Not sent');
     }
     public function cronMaintenance() {
-        if (($this->request->getGet('token') ?? '') !== $this->setting('cron_token', '')) return $this->response->setStatusCode(403)->setBody('Forbidden');
+        if (!$this->cronAllowed()) return $this->response->setStatusCode(403)->setBody('Forbidden');
         $today = date('Y-m-d');
         $due = $this->db->table('maintenance_schedules')->where('active', 1)->groupStart()->where('next_run <=', $today)->orWhere('next_run', null)->groupEnd()->get()->getResultArray();
         foreach ($due as $m) {
@@ -36,11 +44,7 @@ class ItsMisc extends ItsBase {
         return $this->response->setBody('OK ' . date('Y-m-d H:i:s') . ' due=' . count($due));
     }
     public function cronDeviceMonitor() {
-        $token = (string) ($this->request->getGet('token') ?? '');
-        $expected = (string) $this->setting('cron_token', '');
-        if ($expected === '' || !hash_equals($expected, $token)) {
-            return $this->response->setStatusCode(403)->setBody('Forbidden');
-        }
+        if (!$this->cronAllowed()) return $this->response->setStatusCode(403)->setBody('Forbidden');
 
         $devices = $this->db->table('network_devices')->where('monitor_enabled', 1)->orderBy('last_checked', 'ASC')->limit(100)->get()->getResultArray();
         $monitor = new NetworkMonitor();

@@ -7,6 +7,7 @@ class ItsBilling extends ItsBase {
         $to = date('Y-m-d 00:00:00', strtotime($month . '-01 +1 month'));
         $mins = [];
         foreach ($this->db->query('SELECT t.client_id, SUM(CASE WHEN e.billable=1 THEN e.minutes ELSE 0 END) b, SUM(e.minutes) a FROM time_entries e JOIN tickets t ON t.id=e.ticket_id WHERE e.created_at >= ? AND e.created_at < ? GROUP BY t.client_id', [$from, $to])->getResultArray() as $r) $mins[$r['client_id']] = $r;
+        foreach ($this->db->query('SELECT client_id, SUM(hours) h FROM training_sessions WHERE counts_hours=1 AND session_date >= ? AND session_date < ? GROUP BY client_id', [substr($from, 0, 10), substr($to, 0, 10)])->getResultArray() as $t) { $mins[$t['client_id']]['b'] = (int) ($mins[$t['client_id']]['b'] ?? 0) + (int) round($t['h'] * 60); $mins[$t['client_id']]['a'] = (int) ($mins[$t['client_id']]['a'] ?? 0) + (int) round($t['h'] * 60); }
         $out = [];
         foreach ($this->db->table('clients')->orderBy('name')->get()->getResultArray() as $c) {
             $billable = (int) ($mins[$c['id']]['b'] ?? 0);

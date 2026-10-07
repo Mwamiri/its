@@ -44,13 +44,22 @@ class Totp
 
     public static function verify(string $secret, string $input, int $window = 1): bool
     {
+        return self::matchStep($secret, $input, $window) !== null;
+    }
+
+    /**
+     * Returns the 30-second time step the code belongs to, or null. Callers store the step and reject
+     * any code whose step is not newer, so an intercepted code cannot be replayed within its window.
+     */
+    public static function matchStep(string $secret, string $input, int $window = 1, ?int $time = null): ?int
+    {
         $input = preg_replace('/\s+/', '', $input);
-        if (! preg_match('/^\d{6}$/', $input)) return false;
-        $now = time();
+        if (! preg_match('/^\d{6}$/', $input)) return null;
+        $now = $time ?? time();
         for ($i = -$window; $i <= $window; $i++) {
-            if (hash_equals(self::code($secret, $now + $i * 30), $input)) return true;
+            if (hash_equals(self::code($secret, $now + $i * 30), $input)) return intdiv($now + $i * 30, 30);
         }
-        return false;
+        return null;
     }
 
     public static function uri(string $secret, string $account, string $issuer): string

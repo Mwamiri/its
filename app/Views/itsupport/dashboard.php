@@ -1,27 +1,53 @@
 <?= view('itsupport/_header') ?>
+<?php $hid = static fn(string $w): bool => in_array($w, $hidden, true); $prio = ['low' => 'gray', 'medium' => 'blue', 'high' => 'orange', 'urgent' => 'orange']; ?>
 <section class="dashboard-intro">
-    <div><p class="eyebrow">OVERVIEW</p><h2>Welcome back, <?= esc(session('its_user')['name'] ?? 'Team') ?></h2><p class="muted">A quick view of your support operations.</p></div>
+    <div><p class="eyebrow">OVERVIEW</p><h2>Welcome back, <?= esc(session('its_user')['name'] ?? 'Team') ?></h2><p class="muted"><?= esc(date('l, j F Y')) ?> · a quick view of your support operations.</p></div>
     <div class="quick-actions">
-        <a class="button" href="<?= base_url('its-tickets') ?>">New ticket</a>
+        <a class="button" href="<?= base_url('its-tickets#new-ticket') ?>">New ticket</a>
         <a class="button secondary" href="<?= base_url('its-clients') ?>">Add client</a>
+        <a class="button secondary" href="<?= base_url('its-assets#asset-form') ?>">Add asset</a>
+        <details class="dash-customize"><summary class="button secondary">Customize</summary><form method="post" action="<?= base_url('its-dashboard-widgets') ?>" class="dash-panel"><?= csrf_field() ?><strong>Show on my dashboard</strong>
+        <?php foreach (\App\Controllers\ItsDash::WIDGETS as $wk => $wl) { if ($wk === 'costs' && !$canCosts) continue; ?><label><input type="checkbox" name="show[]" value="<?= $wk ?>" <?= $hid($wk) ? '' : 'checked' ?>> <?= esc($wl) ?></label><?php } ?>
+        <button class="btn">Save layout</button></form></details>
     </div>
 </section>
-<p class="muted live-refresh" data-refresh-status role="status" aria-live="polite">Dashboard data refreshes automatically every minute.</p>
-<section class="grid dashboard-metrics" aria-label="Support overview" data-dashboard-stats="<?= esc(base_url('its-dashboard-stats')) ?>">
+<p class="muted live-refresh" data-refresh-status data-dashboard-stats="<?= esc(base_url('its-dashboard-stats')) ?>" role="status" aria-live="polite">Figures refresh automatically every minute.</p>
+<?php if (!$hid('kpis')) { ?>
+<section class="grid dashboard-metrics" aria-label="Support overview">
     <a class="card metric" href="<?= base_url('its-clients') ?>"><span class="metric-label">Clients</span><strong data-stat="clients"><?= $clients ?></strong><span class="metric-link">View clients</span></a>
     <a class="card metric" href="<?= base_url('its-assets') ?>"><span class="metric-label">Assets</span><strong data-stat="assets"><?= $assets ?></strong><span class="metric-link">View assets</span></a>
     <a class="card metric" href="<?= base_url('its-tickets') ?>"><span class="metric-label">Open tickets</span><strong data-stat="openTickets"><?= $openTickets ?></strong><span class="metric-link">Manage tickets</span></a>
+    <a class="card metric<?= $dueSoon ? ' is-hot' : '' ?>" href="<?= base_url('its-tickets?view=overdue') ?>"><span class="metric-label">Due within 24h / overdue</span><strong><?= count($dueSoon) ?></strong><span class="metric-link">See overdue</span></a>
     <a class="card metric" href="<?= base_url('its-quotes') ?>"><span class="metric-label">Pending quotes</span><strong data-stat="pendingQuotes"><?= $pendingQuotes ?></strong><span class="metric-link">View quotes</span></a>
     <a class="card metric" href="<?= base_url('its-tickets') ?>"><span class="metric-label">Awaiting approval</span><strong data-stat="awaitingApproval"><?= $awaitingApproval ?></strong><span class="metric-link">Review tasks</span></a>
     <a class="card metric" href="<?= base_url('its-network') ?>"><span class="metric-label">Devices online</span><strong data-stat="devicesOnline"><?= $devicesOnline ?></strong><span class="metric-link">View network</span></a>
-    <div class="card metric"><span class="metric-label">Maintenance due</span><strong data-stat="maintenanceDue"><?= $maintenanceDue ?></strong><span class="metric-link">Active schedules</span></div>
-    <div class="card metric"><span class="metric-label">Project cost</span><strong data-stat="projectCost"><?= number_format($projectCost, 2) ?></strong><span class="metric-link">Current total</span></div>
+    <a class="card metric" href="<?= base_url('its-admin?tab=maintenance') ?>"><span class="metric-label">Maintenance due</span><strong data-stat="maintenanceDue"><?= $maintenanceDue ?></strong><span class="metric-link">Schedules</span></a>
+    <?php if ($canCosts) { ?><div class="card metric"><span class="metric-label">Project cost</span><strong data-stat="projectCost"><?= number_format($projectCost, 2) ?></strong><span class="metric-link">Current total</span></div><?php } ?>
 </section>
+<?php } ?>
+<?php if (!$hid('mywork') || !$hid('activity')) { ?>
+<section class="grid dash-work">
+<?php if (!$hid('mywork')) { ?>
+    <article class="card"><div class="chart-heading"><div><h3>My work</h3><p class="muted">Open tickets assigned to you, soonest due first</p></div><a class="button secondary" href="<?= base_url('its-tickets?view=mine') ?>">All mine</a></div>
+    <?php foreach ($myWork as $t) { $late = !empty($t['due_at']) && $t['due_at'] < $now; ?><a class="dash-row" href="<?= base_url('its-tickets-view/' . $t['id']) ?>"><span><strong><?= esc($t['ticket_number']) ?></strong> <?= esc($t['subject']) ?><br><span class="muted"><?= esc($t['client_name'] ?? '') ?></span></span><span class="dash-meta"><span class="badge <?= $prio[$t['priority']] ?? 'gray' ?>"><?= esc($t['priority']) ?></span><?= !empty($t['due_at']) ? '<small' . ($late ? ' class="late"' : '') . '>' . ($late ? 'overdue ' : 'due ') . esc(substr((string) $t['due_at'], 5, 11)) . '</small>' : '' ?></span></a><?php } ?>
+    <?php if (!$myWork) { ?><p class="chart-empty">Nothing assigned to you. Pick up an <a href="<?= base_url('its-tickets?view=unassigned') ?>">unassigned ticket</a>.</p><?php } ?></article>
+    <article class="card"><div class="chart-heading"><div><h3>Due within 24 hours</h3><p class="muted">Across the team, including overdue</p></div><a class="button secondary" href="<?= base_url('its-tickets?view=overdue') ?>">Overdue</a></div>
+    <?php foreach ($dueSoon as $t) { $late = $t['due_at'] < $now; ?><a class="dash-row" href="<?= base_url('its-tickets-view/' . $t['id']) ?>"><span><strong><?= esc($t['ticket_number']) ?></strong> <?= esc($t['subject']) ?><br><span class="muted"><?= esc($t['client_name'] ?? '') ?><?= empty($t['assigned_to']) ? ' · unassigned' : '' ?></span></span><span class="dash-meta"><small<?= $late ? ' class="late"' : '' ?>><?= $late ? 'overdue' : 'due' ?> <?= esc(substr((string) $t['due_at'], 5, 11)) ?></small></span></a><?php } ?>
+    <?php if (!$dueSoon) { ?><p class="chart-empty">No deadlines in the next 24 hours.</p><?php } ?></article>
+<?php } ?>
+<?php if (!$hid('activity')) { ?>
+    <article class="card"><div class="chart-heading"><div><h3>Recent activity</h3><p class="muted">Latest changes across the system</p></div></div>
+    <?php foreach ($activity as $a) { ?><div class="dash-row"><span><span class="badge blue"><?= esc($a['module'] ?: 'system') ?></span> <?= esc(str_replace('_', ' ', $a['action'])) ?><?= ($a['details'] ?? '') !== '' ? ' · <span class="muted">' . esc(mb_strimwidth((string) $a['details'], 0, 48, '…')) . '</span>' : '' ?></span><span class="dash-meta"><small><?= esc($a['user_name'] ?? 'system') ?> · <?= esc(substr((string) $a['created_at'], 5, 11)) ?></small></span></div><?php } ?>
+    <?php if (!$activity) { ?><p class="chart-empty">No activity yet.</p><?php } ?></article>
+<?php } ?>
+</section>
+<?php } ?>
+
 <?php
 $monthlyMax = max(1, max($monthCounts));
 $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
 ?>
-<section class="grid grid-2 dashboard-charts" aria-label="Ticket statistics">
+<?php if (!$hid('charts')) { ?><section class="grid grid-2 dashboard-charts" aria-label="Ticket statistics">
     <article class="card chart-card">
         <div class="chart-heading"><div><h3>Ticket volume</h3><p class="muted">Created over the last six months</p></div><span class="badge blue" data-month-total><?= array_sum($monthCounts) ?> total</span></div>
         <div class="month-chart" role="img" aria-label="Tickets created each month for the last six months">
@@ -48,9 +74,9 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                 <?php } else { ?><p class="chart-empty">No tickets yet. Create a ticket to see its status here.</p><?php } ?>
             </div>
     </article>
-</section>
-<section class="grid grid-2 dashboard-charts" aria-label="Cost and network statistics">
-    <article class="card chart-card">
+</section><?php } ?>
+<?php if (($canCosts && !$hid('costs')) || !$hid('network')) { ?><section class="grid grid-2 dashboard-charts" aria-label="Cost and network statistics">
+    <?php if ($canCosts && !$hid('costs')) { ?><article class="card chart-card">
         <div class="chart-heading"><div><h3>Monthly service costs</h3><p class="muted">Project and retainer costs by task creation date</p></div></div>
         <div class="cost-chart" role="img" aria-label="Monthly project and retainer costs for the last six months" data-cost-chart>
             <?php $costMax = 0.0; foreach ($costsByMonth as $cost) { $costMax = max($costMax, $cost['project'] + $cost['retainer']); } $costMax = max(1.0, $costMax); ?>
@@ -66,8 +92,8 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
             <?php } ?>
         </div>
         <div class="chart-legend"><span><i class="legend-project"></i>Project</span><span><i class="legend-retainer"></i>Retainer</span></div>
-    </article>
-    <article class="card chart-card">
+    </article><?php } ?>
+    <?php if (!$hid('network')) { ?><article class="card chart-card">
         <div class="chart-heading"><div><h3>Network devices by manufacturer</h3><p class="muted">Registered devices grouped by manufacturer</p></div></div>
         <div class="status-chart" data-manufacturer-chart>
             <?php $manufacturerTotal = array_sum(array_column($devicesByManufacturer, 'total')); ?>
@@ -78,29 +104,33 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                 </div>
             <?php } } else { ?><p class="chart-empty">No network devices have been registered yet.</p><?php } ?>
         </div>
-    </article>
-</section>
-<section class="card dashboard-links">
+    </article><?php } ?>
+</section><?php } ?>
+<?php if (!$hid('links')) { ?><section class="card dashboard-links">
     <div><h3>Workspace</h3><p class="muted">Go straight to a section or get help using the system.</p></div>
     <div class="quick-actions">
         <a class="button secondary" href="<?= base_url('its-features') ?>">Explore features</a>
         <a class="button secondary" href="<?= base_url('its-help') ?>">Help &amp; guides</a>
         <?php if ((session('its_user')['role'] ?? '') === 'admin') { ?><a class="button secondary" href="<?= base_url('its-admin') ?>">Administration</a><?php } ?>
     </div>
-</section>
+</section><?php } ?>
 <style>
 .dashboard-intro{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}.dashboard-intro h2{font-size:26px;margin:0 0 6px}.dashboard-intro p{margin:0}.eyebrow{color:var(--brand);font-size:11px;font-weight:700;letter-spacing:.12em;margin-bottom:8px!important}.quick-actions{display:flex;flex-wrap:wrap;gap:8px}.dashboard-metrics{grid-template-columns:repeat(auto-fit,minmax(175px,1fr))}.metric{display:flex;min-height:145px;flex-direction:column;gap:10px;margin:0;color:inherit;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease}.metric[href]:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,23,42,.09)}.metric-label{color:#64748b;font-size:13px;font-weight:600}.metric strong{font-size:30px;line-height:1.1}.metric-link{margin-top:auto;color:var(--brand);font-size:12px;font-weight:600}.chart-card{min-width:0}.chart-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:24px}.chart-heading h3{margin:0 0 5px}.chart-heading p{margin:0}.month-chart{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;min-width:290px;height:205px;align-items:end}.month-column{display:flex;height:100%;min-width:0;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px}.month-count{font-size:12px;font-weight:700;color:#334155}.month-track{display:flex;width:min(100%,42px);height:145px;align-items:flex-end;overflow:hidden;border-radius:9px 9px 3px 3px;background:linear-gradient(to top,#f1f5f9,#f8fafc)}.month-bar{display:block;width:100%;min-height:0;border-radius:8px 8px 2px 2px;background:linear-gradient(180deg,var(--brand),var(--brand-dark));transition:height .25s ease}.month-label{font-size:12px;color:#64748b}.status-chart{display:grid;gap:18px}.status-row{min-width:0}.status-label{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px;font-size:13px}.status-label span{color:#475569}.status-label strong{color:#0f172a}.status-track{height:9px;overflow:hidden;border-radius:99px;background:#f1f5f9}.status-bar{display:block;height:100%;min-width:0;border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--brand-dark))}.chart-empty{padding:20px 0;color:#64748b;font-size:14px}.dashboard-links{display:flex;align-items:center;justify-content:space-between;gap:18px}.dashboard-links h3{margin:0 0 6px}.dashboard-links p{margin:0}@media(max-width:650px){.dashboard-intro,.dashboard-links{align-items:flex-start;flex-direction:column}.dashboard-intro h2{font-size:22px}.dashboard-charts{grid-template-columns:1fr}}
 .live-refresh{margin:0 0 10px;font-size:12px}
+.dash-work{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));margin:16px 0}.dash-work .card{margin:0}.dash-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;font-size:13.5px}.dash-row:last-child{border-bottom:0}a.dash-row:hover{background:var(--brand-soft)}.dash-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap}.dash-meta small{color:var(--muted)}.dash-meta small.late{color:#b45309;font-weight:700}
+.metric.is-hot{border-color:#f59e0b;box-shadow:inset 4px 0 #f59e0b}
+.dash-customize{position:relative}.dash-customize>summary{list-style:none;cursor:pointer}.dash-customize>summary::-webkit-details-marker{display:none}.dash-panel{position:absolute;inset-inline-end:0;top:calc(100% + 6px);z-index:30;display:grid;gap:6px;min-width:240px;padding:14px;background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px rgba(15,23,42,.18)}.dash-panel label{display:flex;gap:8px;align-items:center;margin:0;font-size:13px}
 .cost-chart{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;height:205px;align-items:end}.cost-column{display:flex;height:100%;min-width:0;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px}.cost-total{font-size:10px;font-weight:700;color:#334155;white-space:nowrap}.cost-track{display:flex;width:min(100%,42px);height:145px;flex-direction:column-reverse;overflow:hidden;border-radius:9px 9px 3px 3px;background:linear-gradient(to top,#f1f5f9,#f8fafc)}.cost-project,.cost-retainer{display:block;width:100%;min-height:0;transition:height .25s ease}.cost-project{background:linear-gradient(180deg,var(--brand),var(--brand-dark))}.cost-retainer{background:#22c55e}.chart-legend{display:flex;justify-content:center;gap:18px;margin-top:12px;color:#64748b;font-size:12px}.chart-legend span{display:flex;align-items:center;gap:6px}.chart-legend i{width:9px;height:9px;border-radius:3px}.legend-project{background:var(--brand)}.legend-retainer{background:#22c55e}
 </style>
 <script>
 (() => {
-    const grid = document.querySelector('[data-dashboard-stats]');
-    if (!grid) return;
+    const grid = document;
+    const source = document.querySelector('[data-dashboard-stats]');
+    if (!source) return;
     const status = document.querySelector('[data-refresh-status]');
     const update = async () => {
         try {
-            const response = await fetch(grid.dataset.dashboardStats, {headers:{Accept:'application/json'}, cache:'no-store'});
+            const response = await fetch(source.dataset.dashboardStats, {headers:{Accept:'application/json'}, cache:'no-store'});
             if (!response.ok) throw new Error(`Dashboard refresh returned HTTP ${response.status}.`);
             const data = await response.json();
             for (const [key, value] of Object.entries(data)) {
@@ -123,10 +153,11 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                 column.querySelector('[data-month-bar]').style.height = count > 0 ? `${Math.max(5, Math.round(count / monthMax * 100))}%` : '0%';
                 column.setAttribute('aria-label', `${column.querySelector('.month-label').textContent}: ${count} tickets`);
             }
-            document.querySelector('[data-month-total]').textContent = `${monthTotal} total`;
-            const costValues = Object.values(data.costsByMonth).map(cost => Number(cost.project) + Number(cost.retainer));
+            const mt = document.querySelector('[data-month-total]'); if (mt) mt.textContent = `${monthTotal} total`;
+            const costsByMonth = data.costsByMonth || {};
+            const costValues = Object.values(costsByMonth).map(cost => Number(cost.project) + Number(cost.retainer));
             const costMax = Math.max(1, ...costValues);
-            for (const [month, cost] of Object.entries(data.costsByMonth)) {
+            for (const [month, cost] of Object.entries(costsByMonth)) {
                 const column = document.querySelector(`[data-cost-month="${month}"]`);
                 if (!column) continue;
                 const project = Number(cost.project);
@@ -138,9 +169,10 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                 column.setAttribute('aria-label', `${column.querySelector('.month-label').textContent}: ${total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
             }
             const statuses = document.querySelector('[data-live-statuses]');
+            if (statuses) {
             const statusRows = data.ticketStatuses;
             const total = statusRows.reduce((sum, row) => sum + Number(row.total), 0);
-            document.querySelector('[data-status-total]').textContent = `${total} total`;
+            const st = document.querySelector('[data-status-total]'); if (st) st.textContent = `${total} total`;
             statuses.replaceChildren();
             if (!statusRows.length) {
                 const empty = document.createElement('p');
@@ -168,7 +200,9 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                     statuses.append(item);
                 }
             }
+            }
             const manufacturerChart = document.querySelector('[data-manufacturer-chart]');
+            if (manufacturerChart) {
             manufacturerChart.replaceChildren();
             const manufacturerTotal = data.devicesByManufacturer.reduce((sum, item) => sum + Number(item.total), 0);
             if (!data.devicesByManufacturer.length) {
@@ -197,6 +231,7 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
                     manufacturerChart.append(row);
                 }
             }
+            }
             status.textContent = `Updated ${new Date().toLocaleTimeString()}.`;
         } catch (error) {
             console.error('Dashboard refresh failed.', error);
@@ -204,7 +239,7 @@ $statusTotal = array_sum(array_column($ticketStatuses, 'total'));
         }
     };
     update();
-    window.setInterval(update, 5000);
+    window.setInterval(update, 60000);
 })();
 </script>
 <?= view('itsupport/_footer') ?>

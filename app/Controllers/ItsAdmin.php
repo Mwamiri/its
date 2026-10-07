@@ -19,7 +19,46 @@ class ItsAdmin extends ItsBase {
             'customizations' => json_decode((string) SettingModel::get('customization_log', '[]'), true) ?: [],
             'templates' => (new DocumentTemplateModel())->orderBy('template_type')->orderBy('name')->findAll(),
             'editTemplate' => (new DocumentTemplateModel())->find((int) $this->request->getGet('edit_template')),
+            'customFields' => $tab === 'fields' ? array_merge(...array_map(static fn($e) => \App\Libraries\CustomFields::defs($e, true), array_keys(\App\Libraries\CustomFields::ENTITIES))) : [],
+            'editField' => $tab === 'fields' && $this->db->tableExists('custom_fields') ? $this->db->table('custom_fields')->where('id', (int) $this->request->getGet('edit_field'))->get()->getRowArray() : null,
         ]);
+    }
+
+    /** Create or update an admin-defined field for clients, assets or tickets. */
+    public function saveField() {
+        if ($r = $this->needAdmin()) return $r;
+        $back = redirect()->to(base_url('its-admin?tab=fields'));
+        if (!$this->db->tableExists('custom_fields')) return $back->with('err', 'Run the v3 database migration first.');
+        $id = (int) $this->request->getPost('id');
+        $entity = (string) $this->request->getPost('entity');
+        $type = (string) $this->request->getPost('type');
+        $label = mb_substr(trim((string) $this->request->getPost('label')), 0, 120);
+        $key = strtolower(trim((string) $this->request->getPost('field_key')));
+        if ($key === '') $key = trim(preg_replace('/[^a-z0-9]+/', '_', strtolower($label)), '_');
+        $key = substr($key, 0, 40);
+        $options = array_values(array_unique(array_filter(array_map(static fn($o) => mb_substr(trim($o), 0, 100), explode(',', (string) $this->request->getPost('options'))), 'strlen')));
+        if (!isset(\App\Libraries\CustomFields::ENTITIES[$entity]) || !isset(\App\Libraries\CustomFields::TYPES[$type]) || $label === '' || !preg_match('/^[a-z][a-z0-9_]{0,39}$/', $key)) {
+            return $back->with('err', 'Choose where the field appears, a type, and a label (the key must start with a letter).');
+        }
+        if ($type === 'select' && (!$options || count($options) > 50)) return $back->with('err', 'Dropdown fields need 1 to 50 comma-separated options.');
+        $dupe = $this->db->table('custom_fields')->where('entity', $entity)->where('field_key', $key)->where('id !=', $id)->countAllResults();
+        if ($dupe) return $back->with('err', 'A field with that key already exists for ' . strtolower(\App\Libraries\CustomFields::ENTITIES[$entity]) . '.');
+        $data = [
+            'entity' => $entity, 'field_key' => $key, 'label' => $label, 'type' => $type,
+            'options_json' => $type === 'select' ? json_encode($options, JSON_UNESCAPED_UNICODE) : null,
+            'help' => mb_substr(trim((string) $this->request->getPost('help')), 0, 255) ?: null,
+            'required' => $this->request->getPost('required') ? 1 : 0,
+            'show_in_list' => $this->request->getPost('show_in_list') ? 1 : 0,
+            'show_in_report' => $this->request->getPost('show_in_report') ? 1 : 0,
+            'show_in_portal' => $this->request->getPost('show_in_portal') ? 1 : 0,
+            'sort_order' => max(0, min(999, (int) $this->request->getPost('sort_order'))),
+            'active' => $this->request->getPost('active') === '0' ? 0 : 1,
+        ];
+        if ($id) $this->db->table('custom_fields')->where('id', $id)->update($data);
+        else $this->db->table('custom_fields')->insert($data + ['created_at' => date('Y-m-d H:i:s')]);
+        \App\Libraries\CustomFields::reset();
+        $this->audit($id ? 'custom_field_updated' : 'custom_field_created', 'settings', $entity . '.' . $key);
+        return $back->with('ok', 'Field "' . $label . '" saved. It now appears on ' . strtolower(\App\Libraries\CustomFields::ENTITIES[$entity]) . ' forms.');
     }
     public function addUser() {
         if ($this->needAdmin()) return $this->needAdmin();
@@ -55,6 +94,10 @@ class ItsAdmin extends ItsBase {
         SettingModel::put('company_email', $companyEmail);
         SettingModel::put('header_tagline', $headerTagline);
         SettingModel::put('footer_text', $footerText);
+        // Letterhead details printed on service reports, asset registers and client reports.
+        foreach (\App\Libraries\Brand::FIELDS as $key => [, $max]) {
+            if ($this->request->getPost($key) !== null) SettingModel::put($key, mb_substr(trim((string) $this->request->getPost($key)), 0, $max));
+        }
         if ($oldCompanyName !== $companyName) {
             $this->logCustom('Company', 'Name changed', $oldCompanyName . ' to ' . $companyName);
         }
