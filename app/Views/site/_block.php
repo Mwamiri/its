@@ -155,7 +155,7 @@ case 'support': ?>
 <section class="sec <?= $cls ?>" id="support-form"><div class="wrap contact">
   <div class="card"><h2><?= esc($t('title', 'Submit a Support Request')) ?></h2><p><?= esc($t('text', 'Fill in the form and our team will contact you promptly. Existing clients can log in to the client portal to track progress.')) ?></p>
   <form class="form" method="post" action="<?= base_url('support-request') ?>"><?= csrf_field() ?>
-    <input type="hidden" name="t" value="<?= time() ?>"><input type="hidden" name="source" value="<?= esc($slug) ?>">
+    <input type="hidden" name="t" value="<?= time() ?>"><input type="hidden" name="source" value="<?= esc($slug) ?>"><input type="hidden" name="redirect_to" value="<?= esc(current_url()) ?>">
     <div class="hp" aria-hidden="true"><label for="sr-website">Leave this empty</label><input id="sr-website" name="website" tabindex="-1" autocomplete="off"></div>
     <div><label for="sr-name">Full name *</label><input id="sr-name" name="name" maxlength="150" required autocomplete="name" value="<?= esc(old('name') ?? '') ?>"></div>
     <div><label for="sr-phone">Phone number</label><input id="sr-phone" name="phone" type="tel" maxlength="60" autocomplete="tel" value="<?= esc(old('phone') ?? '') ?>"></div>

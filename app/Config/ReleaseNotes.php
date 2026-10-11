@@ -10,6 +10,17 @@ namespace Config;
 class ReleaseNotes
 {
     public array $releases = [
+        '4.0.3' => [
+            'date'  => '2026-10-11',
+            'title' => 'Sub-menus, support form on any page, footer column reorder',
+            'items' => [
+                ['feature', 'Two-level navigation sub-menus: assign any page or custom link as a child of a top-level page in Website → Menu. Hover dropdowns on desktop; tap-to-toggle on mobile.'],
+                ['feature', 'Support request form can now be embedded on any page (including Home) via the page builder. After submitting, visitors are returned to the page they came from, not the dedicated /support-request page.'],
+                ['feature', 'Footer column order is now draggable in Website → Design → Footer: drag the "Navigation links", "Services", "Contact info", "Custom links" and "Get support" rows into any order.'],
+                ['feature', 'New "Get support" footer section: shows a brief call-to-action and a "Submit a request" button linking to the support form (toggle on/off in Design → Footer).'],
+                ['feature', 'Menu builder: drag rows to reorder pages (order numbers update automatically). Each page can now be set as a sub-item of another page via the "Sub-menu of" dropdown.'],
+            ],
+        ],
         '4.0.2' => [
             'date'  => '2026-10-11',
             'title' => 'Menu builder and custom navigation links',

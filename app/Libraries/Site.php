@@ -103,6 +103,8 @@ class Site
         'site_footer_whatsapp' => ['Show WhatsApp button in footer', 'bool', '1', 'footer'],
         'site_footer_contact' => ['Show contact info section in footer', 'bool', '1', 'footer'],
         'site_footer_links' => ['Custom footer links (one per line: Label|URL)', 'textarea', '', 'footer'],
+        'site_footer_support' => ['Show "Get support" section in footer', 'bool', '0', 'footer'],
+        'site_footer_order' => ['Footer column order (drag rows to reorder)', 'order', 'menu,services,custom,contact,support', 'footer'],
         'site_custom_css' => ['Custom CSS (advanced)', 'css', '', 'footer'],
     ];
     public const FONTS = ['inter' => 'Inter', 'poppins' => 'Poppins', 'montserrat' => 'Montserrat', 'roboto' => 'Roboto', 'open-sans' => 'Open+Sans'];
@@ -116,6 +118,7 @@ class Site
             if ($type === 'select') $d[$short] = isset($opt[$v]) ? $v : array_key_first($opt);
             elseif ($type === 'bool') $d[$short] = $v === '' ? $opt === '1' : $v === '1';
             elseif ($type === 'number') $d[$short] = $v === '' ? (int) $opt : (int) $v;
+            elseif ($type === 'order') $d[$short] = array_filter(array_map('trim', explode(',', $v !== '' ? $v : $opt)));
             else $d[$short] = $v === '' ? (string) $opt : $v;
         }
         $d['logo_height'] = max(24, min(120, $d['logo_height']));
@@ -311,18 +314,40 @@ class Site
 
     public static function menu(): array
     {
-        $pages = \Config\Database::connect()->table('site_pages')
-            ->select('slug, title, menu_label, menu_order')->where('published', 1)->where('show_in_menu', 1)
+        $db = \Config\Database::connect();
+        $hasParent = $db->fieldExists('menu_parent', 'site_pages');
+        $select = $hasParent ? 'slug, title, menu_label, menu_order, menu_parent' : 'slug, title, menu_label, menu_order';
+        $rows = $db->table('site_pages')->select($select)->where('published', 1)->where('show_in_menu', 1)
             ->orderBy('menu_order')->orderBy('id')->get()->getResultArray();
+
+        // Build two-level tree: index by slug first, then separate top/children
+        $top = []; $childMap = [];
+        foreach ($rows as $row) {
+            $parent = $hasParent ? ($row['menu_parent'] ?? '') : '';
+            if ($parent !== '' && $parent !== null) $childMap[$parent][] = $row;
+            else $top[] = $row;
+        }
+
+        // Merge custom links
         $custom = json_decode((string) SettingModel::get('site_menu_custom', ''), true);
-        if (!is_array($custom) || empty($custom)) return $pages;
-        foreach ($custom as $c) {
-            if (!empty($c['label']) && !empty($c['url'])) {
-                $pages[] = ['slug' => $c['url'], 'title' => $c['label'], 'menu_label' => $c['label'], 'menu_order' => (int) ($c['order'] ?? 80)];
+        if (is_array($custom)) {
+            foreach ($custom as $c) {
+                if (empty($c['label']) || empty($c['url'])) continue;
+                $item = ['slug' => $c['url'], 'title' => $c['label'], 'menu_label' => $c['label'], 'menu_order' => (int) ($c['order'] ?? 80), 'menu_parent' => $c['parent'] ?? ''];
+                $parent = $item['menu_parent'];
+                if ($parent !== '' && $parent !== null) $childMap[$parent][] = $item;
+                else $top[] = $item;
             }
         }
-        usort($pages, fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
-        return $pages;
+
+        // Attach sorted children to each top-level item
+        usort($top, fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
+        foreach ($top as &$item) {
+            $item['children'] = $childMap[$item['slug']] ?? [];
+            usort($item['children'], fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
+        }
+        unset($item);
+        return $top;
     }
 
     public static function items(string $kind, bool $featuredOnly = false): array

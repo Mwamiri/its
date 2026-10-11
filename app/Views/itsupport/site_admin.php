@@ -153,45 +153,69 @@ $pv = static fn(array $row, string $k, string $d = '') => (string) (old($k) ?? (
 <div class="grid grid-2">
 <?php foreach ($grp as $g => $gl) { ?><div class="card"><h3><?= esc($gl) ?></h3><div class="form-grid">
 <?php foreach (Site::DESIGN as $k => [$l, $type, $opt, $group]) { if ($group !== $g) continue; $short = substr($k, 5); $cur = $design[$short]; ?>
-<div class="field<?= in_array($type, ['textarea', 'css'], true) ? ' wide' : '' ?>">
+<div class="field<?= in_array($type, ['textarea', 'css', 'order'], true) ? ' wide' : '' ?>">
 <?php if ($type === 'bool') { ?><label class="check-line" style="margin-top:22px"><input type="checkbox" name="<?= $k ?>" value="1" <?= $cur ? 'checked' : '' ?>> <?= esc($l) ?></label>
 <?php } else { ?><label for="d-<?= $k ?>"><?= esc($l) ?></label>
 <?php if ($type === 'select') { ?><select id="d-<?= $k ?>" name="<?= $k ?>"><?php foreach ($opt as $ov => $ol) { ?><option value="<?= esc($ov) ?>" <?= $cur === $ov ? 'selected' : '' ?>><?= esc($ol) ?></option><?php } ?></select>
 <?php } elseif ($type === 'number') { ?><input id="d-<?= $k ?>" type="number" name="<?= $k ?>" min="0" max="200" value="<?= (int) $cur ?>">
 <?php } elseif ($type === 'textarea' || $type === 'css') { ?><textarea id="d-<?= $k ?>" name="<?= $k ?>" rows="<?= $type === 'css' ? 6 : 3 ?>" <?= $type === 'css' ? 'spellcheck="false" style="font-family:monospace;font-size:12px" placeholder=".hero h1 { letter-spacing: 0 }"' : '' ?>><?= esc((string) $cur) ?></textarea>
+<?php } elseif ($type === 'order') {
+    $secOpts = ['menu' => 'Navigation links', 'services' => 'Services list', 'custom' => 'Custom links', 'contact' => 'Contact info', 'support' => '"Get support" section'];
+    $ordArr = is_array($cur) ? $cur : array_filter(array_map('trim', explode(',', $cur)));
+    foreach (array_keys($secOpts) as $os) if (!in_array($os, $ordArr, true)) $ordArr[] = $os;
+?><input type="hidden" id="fo-hidden-<?= $k ?>" name="<?= $k ?>" value="<?= esc(implode(',', $ordArr)) ?>">
+<div id="fo-list-<?= $k ?>" data-fo style="display:grid;gap:5px;margin-top:6px">
+<?php foreach ($ordArr as $os) { if (!isset($secOpts[$os])) continue; ?><div class="fo-row" data-sec="<?= esc($os) ?>" draggable="true" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);cursor:grab;user-select:none"><span style="color:var(--muted);font-weight:700;letter-spacing:-2px">⋮⋮</span><span style="flex:1;font-size:13px"><?= esc($secOpts[$os]) ?></span></div><?php } ?>
+</div>
+<p class="muted" style="font-size:12px;margin:4px 0 0">Drag to change the column order. Use the toggles above to show or hide each section.</p>
 <?php } else { ?><input id="d-<?= $k ?>" name="<?= $k ?>" maxlength="255" value="<?= esc((string) $cur) ?>"><?php } ?>
 <?php } ?></div>
 <?php } ?></div></div><?php } ?>
 <div class="card"><h3>Colours, logo &amp; contact details</h3><p class="muted">Brand colours, contact details and SEO defaults are on the <a href="<?= base_url('its-site?tab=settings') ?>">Settings &amp; SEO</a> tab; the logo comes from Admin → Branding &amp; Settings.</p>
 <div class="form-actions"><button class="btn">Save design</button><a class="button secondary" href="<?= base_url() ?>" target="_blank" rel="noopener">View website ↗</a></div></div>
 </div></form>
+<script>
+document.querySelectorAll('[data-fo]').forEach(function(list) {
+  var key = list.id.replace('fo-list-', ''), inp = document.getElementById('fo-hidden-' + key), drag = null;
+  function upd() { if (inp) inp.value = [...list.querySelectorAll('[data-sec]')].map(r => r.dataset.sec).join(','); }
+  list.addEventListener('dragstart', function(e) { drag = e.target.closest('.fo-row'); if (drag) { drag.style.opacity = '.4'; e.dataTransfer.effectAllowed = 'move'; } });
+  list.addEventListener('dragend', function() { if (drag) drag.style.opacity = ''; drag = null; upd(); });
+  list.addEventListener('dragover', function(e) { e.preventDefault(); var t = e.target.closest('.fo-row'); if (!t || t === drag) return; var r = t.getBoundingClientRect(); list.insertBefore(drag, e.clientY < r.top + r.height / 2 ? t : t.nextSibling); });
+});
+</script>
 
 <?php } elseif ($tab === 'menu') { ?>
 <div class="card">
 <h3>Menu builder</h3>
 <p class="muted">Set the order and visibility of pages in the main navigation. Add custom links (for example to external sites or page anchors) below the page list.</p>
+<?php $hasParent = \Config\Database::connect()->fieldExists('menu_parent', 'site_pages'); ?>
 <form method="post" action="<?= base_url('its-site-menu') ?>"><?= csrf_field() ?>
 <h4 style="margin:16px 0 8px">Page items</h4>
-<div class="tbl"><table>
-<tr><th>Page</th><th>Menu label <span class="muted">(blank = page title)</span></th><th>Order</th><th>Show in menu</th></tr>
+<p class="muted" style="margin:0 0 8px">Drag <strong>⋮⋮</strong> to reorder. Drag auto-renumbers the Order field. Sub-menu items are indented under their parent in the nav.</p>
+<div class="tbl"><table id="mn-pages">
+<tr><th style="width:28px"></th><th>Page</th><th>Menu label <span class="muted">(blank = page title)</span></th><th>Order</th><?php if ($hasParent) { ?><th>Sub-menu of</th><?php } ?><th>Show</th></tr>
 <?php foreach ($pages as $pg) { ?>
 <tr>
+  <td class="mn-handle" style="cursor:grab;color:var(--muted);font-weight:700;letter-spacing:-2px;user-select:none">⋮⋮</td>
   <td><strong><?= esc($pg['title']) ?></strong><?= $pg['is_system'] ? ' <span class="badge gray">built-in</span>' : '' ?><br><a class="muted" style="font-size:12px" href="<?= esc(Site::url($pg['slug'])) ?>" target="_blank" rel="noopener">/<?= esc($pg['slug'] === 'home' ? '' : $pg['slug']) ?></a></td>
-  <td><input name="pages[<?= (int) $pg['id'] ?>][label]" value="<?= esc($pg['menu_label'] ?? '') ?>" placeholder="<?= esc($pg['title']) ?>" maxlength="60" style="width:160px"></td>
-  <td><input type="number" name="pages[<?= (int) $pg['id'] ?>][order]" value="<?= (int) $pg['menu_order'] ?>" min="0" max="999" style="width:64px"></td>
+  <td><input name="pages[<?= (int) $pg['id'] ?>][label]" value="<?= esc($pg['menu_label'] ?? '') ?>" placeholder="<?= esc($pg['title']) ?>" maxlength="60" style="width:140px"></td>
+  <td><input type="number" name="pages[<?= (int) $pg['id'] ?>][order]" value="<?= (int) $pg['menu_order'] ?>" min="0" max="999" style="width:60px"></td>
+  <?php if ($hasParent) { ?><td><select name="pages[<?= (int) $pg['id'] ?>][parent]" style="width:150px"><option value="">— top level —</option><?php foreach ($pages as $pp) { if ($pp['id'] === $pg['id']) continue; ?><option value="<?= esc($pp['slug']) ?>" <?= ($pg['menu_parent'] ?? '') === $pp['slug'] ? 'selected' : '' ?>><?= esc($pp['title']) ?></option><?php } ?></select></td><?php } ?>
   <td style="text-align:center"><label class="check-line" style="justify-content:center;margin:0"><input type="checkbox" name="pages[<?= (int) $pg['id'] ?>][show]" value="1" <?= $pg['show_in_menu'] ? 'checked' : '' ?>></label></td>
 </tr>
 <?php } ?>
 </table></div>
 <h4 style="margin:20px 0 4px">Custom links</h4>
-<p class="muted" style="margin:0 0 10px">Links to external sites, anchors or pages not listed above. Items are sorted together with pages by the order number.</p>
+<p class="muted" style="margin:0 0 10px">Links to external sites, anchors or pages not listed above. Set "Sub-menu of" to nest a link under a page item.</p>
+<?php $menuCustom = json_decode((string) \App\Models\SettingModel::get('site_menu_custom', ''), true) ?: [];
+$parentOptHtml = '<option value="">— top level —</option>' . implode('', array_map(fn($p) => '<option value="' . esc($p['slug']) . '">' . esc($p['title']) . '</option>', $pages)); ?>
 <div id="mn-links">
-<?php $menuCustom = json_decode((string) \App\Models\SettingModel::get('site_menu_custom', ''), true) ?: []; ?>
 <?php foreach ($menuCustom as $cl) { ?>
 <div class="mn-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-  <input name="link_label[]" placeholder="Label" value="<?= esc($cl['label'] ?? '') ?>" maxlength="60" style="width:160px">
-  <input name="link_url[]" placeholder="https://…" value="<?= esc($cl['url'] ?? '') ?>" maxlength="500" style="flex:1;min-width:180px">
-  <input type="number" name="link_order[]" value="<?= (int) ($cl['order'] ?? 80) ?>" min="0" max="999" style="width:64px" title="Order number">
+  <input name="link_label[]" placeholder="Label" value="<?= esc($cl['label'] ?? '') ?>" maxlength="60" style="width:140px">
+  <input name="link_url[]" placeholder="https://…" value="<?= esc($cl['url'] ?? '') ?>" maxlength="500" style="flex:1;min-width:160px">
+  <select name="link_parent[]" style="width:150px"><?php foreach ($pages as $pp) { ?><option value="<?= esc($pp['slug']) ?>" <?= ($cl['parent'] ?? '') === $pp['slug'] ? 'selected' : '' ?>><?= esc($pp['title']) ?></option><?php } ?><?= $parentOptHtml ?></select>
+  <input type="number" name="link_order[]" value="<?= (int) ($cl['order'] ?? 80) ?>" min="0" max="999" style="width:60px" title="Order">
   <button type="button" class="btn secondary" onclick="this.closest('.mn-row').remove()" title="Remove">✕</button>
 </div>
 <?php } ?>
@@ -201,14 +225,26 @@ $pv = static fn(array $row, string $k, string $d = '') => (string) (old($k) ?? (
 </form>
 </div>
 <script>
-document.getElementById('mn-add').addEventListener('click', function() {
-  var r = document.createElement('div');
-  r.className = 'mn-row';
-  r.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap';
-  r.innerHTML = '<input name="link_label[]" placeholder="Label" maxlength="60" style="width:160px"><input name="link_url[]" placeholder="https://…" maxlength="500" style="flex:1;min-width:180px"><input type="number" name="link_order[]" value="80" min="0" max="999" style="width:64px" title="Order number"><button type="button" class="btn secondary" onclick="this.closest(\'.mn-row\').remove()" title="Remove">✕</button>';
-  document.getElementById('mn-links').appendChild(r);
-  r.querySelector('input').focus();
-});
+(function() {
+  var pSel = <?= json_encode('<select name="link_parent[]" style="width:150px">' . $parentOptHtml . '</select>', JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+  document.getElementById('mn-add').addEventListener('click', function() {
+    var r = document.createElement('div'); r.className = 'mn-row';
+    r.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap';
+    r.innerHTML = '<input name="link_label[]" placeholder="Label" maxlength="60" style="width:140px"><input name="link_url[]" placeholder="https://…" maxlength="500" style="flex:1;min-width:160px">' + pSel + '<input type="number" name="link_order[]" value="80" min="0" max="999" style="width:60px" title="Order"><button type="button" class="btn secondary" onclick="this.closest(\'.mn-row\').remove()" title="Remove">✕</button>';
+    document.getElementById('mn-links').appendChild(r); r.querySelector('input').focus();
+  });
+  // Drag-to-reorder pages table
+  var tbody = document.querySelector('#mn-pages tbody'), drag = null;
+  if (!tbody) return;
+  tbody.querySelectorAll('.mn-handle').forEach(function(td) {
+    td.addEventListener('mousedown', function() { td.closest('tr').draggable = true; });
+    td.addEventListener('touchstart', function() { td.closest('tr').draggable = true; }, {passive: true});
+  });
+  tbody.addEventListener('dragstart', function(e) { drag = e.target.closest('tr'); if (drag) { drag.style.opacity = '.45'; e.dataTransfer.effectAllowed = 'move'; } });
+  tbody.addEventListener('dragend', function() { if (drag) { drag.style.opacity = ''; drag.draggable = false; } drag = null; renumber(); });
+  tbody.addEventListener('dragover', function(e) { e.preventDefault(); var over = e.target.closest('tr'); if (!over || over === drag) return; var r = over.getBoundingClientRect(); tbody.insertBefore(drag, e.clientY < r.top + r.height / 2 ? over : over.nextSibling); });
+  function renumber() { [...tbody.querySelectorAll('tr')].forEach(function(r, i) { var inp = r.querySelector('input[type=number]'); if (inp) inp.value = (i + 1) * 10; }); }
+})();
 </script>
 
 <?php } elseif ($tab === 'content') { ?>

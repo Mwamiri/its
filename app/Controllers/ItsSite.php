@@ -128,25 +128,32 @@ class ItsSite extends ItsBase
     public function saveMenu()
     {
         if ($r = $this->guard()) return $r;
+        $hasParent = $this->db->fieldExists('menu_parent', 'site_pages');
         $pages = (array) $this->request->getPost('pages');
         foreach ($pages as $id => $data) {
             $id = (int) $id;
             if (!$id) continue;
-            $this->db->table('site_pages')->where('id', $id)->update([
+            $row = [
                 'show_in_menu' => empty($data['show']) ? 0 : 1,
                 'menu_label'   => mb_substr(trim((string) ($data['label'] ?? '')), 0, 60) ?: null,
                 'menu_order'   => max(0, min(999, (int) ($data['order'] ?? 0))),
-            ]);
+            ];
+            if ($hasParent) $row['menu_parent'] = mb_substr(trim((string) ($data['parent'] ?? '')), 0, 80) ?: null;
+            $this->db->table('site_pages')->where('id', $id)->update($row);
         }
-        $labels = (array) $this->request->getPost('link_label');
-        $urls   = (array) $this->request->getPost('link_url');
-        $orders = (array) $this->request->getPost('link_order');
+        $labels  = (array) $this->request->getPost('link_label');
+        $urls    = (array) $this->request->getPost('link_url');
+        $orders  = (array) $this->request->getPost('link_order');
+        $parents = (array) $this->request->getPost('link_parent');
         $custom = [];
         foreach ($labels as $i => $label) {
             $label = mb_substr(trim((string) $label), 0, 60);
             $url   = mb_substr(trim((string) ($urls[$i] ?? '')), 0, 500);
             if ($label !== '' && $url !== '') {
-                $custom[] = ['label' => $label, 'url' => $url, 'order' => max(0, min(999, (int) ($orders[$i] ?? 80)))];
+                $item = ['label' => $label, 'url' => $url, 'order' => max(0, min(999, (int) ($orders[$i] ?? 80)))];
+                $p = mb_substr(trim((string) ($parents[$i] ?? '')), 0, 80);
+                if ($p !== '') $item['parent'] = $p;
+                $custom[] = $item;
             }
         }
         SettingModel::put('site_menu_custom', json_encode($custom, JSON_UNESCAPED_UNICODE));

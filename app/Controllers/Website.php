@@ -68,7 +68,9 @@ class Website extends BaseController
     /** Public IT support request form → lead in Admin → Website → Leads, plus email notification. */
     public function supportRequest()
     {
-        $back = redirect()->to(base_url('support-request') . '#support-form');
+        $rawRet = trim((string) $this->request->getPost('redirect_to'));
+        $sameHost = filter_var($rawRet, FILTER_VALIDATE_URL) && rtrim((string) parse_url($rawRet, PHP_URL_HOST), '/') === rtrim((string) parse_url(base_url(), PHP_URL_HOST), '/');
+        $back = redirect()->to(($sameHost ? $rawRet : base_url('support-request')) . '#support-form');
         if (!Site::ready()) return $back;
         // Spam guards: honeypot, minimum fill time, per-IP hourly limit.
         if ((string) $this->request->getPost('website') !== '' || time() - (int) $this->request->getPost('t') < 3)
