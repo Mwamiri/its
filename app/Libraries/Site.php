@@ -17,9 +17,13 @@ class Site
         'stat' => ['Why choose us / stats', 'Short trust points or numbers, e.g. "500+ clients served".'],
         'package' => ['Support packages', 'Plans on the Support page; price shows as a label.'],
         'faq' => ['FAQs', 'Question in the title, answer in the text.'],
-        'partner' => ['Partners / brands', 'Brand or client logos (upload an image) or names.'],
+        'partner' => ['Partners & clients', 'Logos of partners, brands and clients. Group (e.g. "Technology partner", "Client") in the subtitle; the link opens their website. Logos dropped in the partners folder also appear.'],
+        'news' => ['News & insights', 'Articles, announcements and success stories. Each gets its own page at /news/…; the summary goes in the subtitle.'],
     ];
     public const SECTIONS = ['service' => 'Services', 'solution' => 'Solutions', 'product' => 'Products', 'project' => 'Projects', 'testimonial' => 'Testimonials', 'value' => 'Values', 'stat' => 'Why choose us', 'package' => 'Support packages', 'faq' => 'FAQs', 'partner' => 'Partners', 'cta' => 'Call to action banner', 'contact' => 'Contact form'];
+    /** Logos placed here (by FTP or Website → Media) appear in partner blocks; a sub-folder name becomes the group. */
+    public const PARTNER_DIR = 'uploads/site/partners';
+    public const VIDEO_MAX_MB = 64;
     public const SETTINGS = [
         'site_enabled' => ['Show the website at the site address (off = go straight to sign-in)', 'bool'],
         'site_name' => ['Company name on the website', 'text'],
@@ -38,6 +42,7 @@ class Site
         'site_ga_id' => ['Google Analytics measurement ID (G-XXXXXXX, optional)', 'text'],
         'site_search_console' => ['Google Search Console verification code (optional)', 'text'],
         'site_footer_note' => ['Footer note', 'text'],
+        'site_email_protect' => ['Hide the email address from spam robots (shown to visitors, scrambled in the page source)', 'bool'],
     ];
 
     /**
@@ -45,7 +50,12 @@ class Site
      * Every block also has "bg" (background) and "anchor" (in-page link id).
      */
     public const BLOCKS = [
-        'hero' => ['Hero banner', ['title' => ['Headline', 'text'], 'subtitle' => ['Text', 'textarea'], 'button_label' => ['Button', 'text'], 'button_url' => ['Button link', 'text'], 'button2_label' => ['Second button', 'text'], 'button2_url' => ['Second button link', 'text'], 'image' => ['Image', 'image'], 'style' => ['Layout', 'select', ['split' => 'Text + illustration', 'center' => 'Centred text']], 'show_trust' => ['Show trust ticks', 'bool']]],
+        'hero' => ['Hero banner', ['title' => ['Headline', 'text'], 'subtitle' => ['Text', 'textarea'], 'button_label' => ['Button', 'text'], 'button_url' => ['Button link', 'text'], 'button2_label' => ['Second button', 'text'], 'button2_url' => ['Second button link', 'text'], 'image' => ['Image', 'image'], 'video' => ['Background video (MP4/WebM, for the full-width layout)', 'video'], 'style' => ['Layout', 'select', ['split' => 'Text + illustration', 'center' => 'Centred text', 'background' => 'Full-width photo or video background']], 'show_trust' => ['Show trust ticks', 'bool']]],
+        'slider' => ['Slider (images & video)', ['slides' => ['Slides', 'slides'], 'height' => ['Height', 'select', ['m' => 'Medium', 'l' => 'Large', 's' => 'Small', 'full' => 'Full screen']], 'overlay' => ['Text shading', 'select', ['dark' => 'Dark', 'brand' => 'Brand colour', 'light' => 'Light', 'none' => 'None']], 'align' => ['Text position', 'select', ['left' => 'Left', 'center' => 'Centre']], 'interval' => ['Seconds per slide (0 = manual)', 'number']]],
+        'video' => ['Video', ['title' => ['Heading', 'text'], 'text' => ['Text', 'markdown'], 'video' => ['Video file (MP4/WebM)', 'video'], 'embed_url' => ['…or a YouTube / Vimeo link', 'text'], 'image' => ['Cover image (optional)', 'image'], 'layout' => ['Layout', 'select', ['wide' => 'Wide video', 'split' => 'Video + text side by side']], 'autoplay' => ['Play silently on loop', 'bool']]],
+        'gallery' => ['Photo gallery', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'images' => ['Photos', 'gallery'], 'columns' => ['Columns', 'select', ['3' => '3', '4' => '4', '2' => '2']]]],
+        'counters' => ['Animated counters', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'lines' => ['One per line: number | label (e.g. 18+ | Years in business)', 'textarea']]],
+        'news' => ['News & insights', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'limit' => ['How many (0 = all)', 'number'], 'featured_only' => ['Only home-page items', 'bool']]],
         'text' => ['Text', ['title' => ['Heading', 'text'], 'text' => ['Content', 'markdown'], 'align' => ['Align', 'select', ['left' => 'Left', 'center' => 'Centre']]]],
         'image_text' => ['Image + text', ['title' => ['Heading', 'text'], 'text' => ['Content', 'markdown'], 'image' => ['Image', 'image'], 'image_side' => ['Image side', 'select', ['left' => 'Left', 'right' => 'Right']], 'button_label' => ['Button', 'text'], 'button_url' => ['Button link', 'text']]],
         'services' => ['Services', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'limit' => ['How many (0 = all)', 'number'], 'featured_only' => ['Only "show on home page" items', 'bool'], 'show_bullets' => ['Show bullet points', 'bool']]],
@@ -57,12 +67,15 @@ class Site
         'stats' => ['Why choose us / stats', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text']]],
         'packages' => ['Support packages', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text']]],
         'faq' => ['FAQs', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text']]],
-        'partners' => ['Partner / brand logos', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text']]],
+        'partners' => ['Partner & client logos', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'style' => ['Display', 'select', ['slider' => 'Sliding strip', 'grid' => 'Grid']], 'group' => ['Only this group (blank = all)', 'text'], 'speed' => ['Slide speed', 'select', ['normal' => 'Normal', 'slow' => 'Slow', 'fast' => 'Fast']], 'show_names' => ['Show names under logos', 'bool'], 'colour' => ['Show logos in colour', 'bool']]],
         'cta' => ['Call-to-action banner', ['title' => ['Heading', 'text'], 'text' => ['Text', 'textarea'], 'button_label' => ['Button', 'text'], 'button_url' => ['Button link', 'text'], 'style' => ['Colour', 'select', ['brand' => 'Brand gradient', 'accent' => 'Accent', 'dark' => 'Dark']]]],
         'contact' => ['Contact form + details', ['title' => ['Heading', 'text'], 'text' => ['Intro', 'textarea']]],
         'spacer' => ['Spacer', ['size' => ['Height', 'select', ['s' => 'Small', 'm' => 'Medium', 'l' => 'Large']]]],
     ];
-    public const BLOCK_KIND = ['services' => 'service', 'solutions' => 'solution', 'products' => 'product', 'projects' => 'project', 'testimonials' => 'testimonial', 'values' => 'value', 'stats' => 'stat', 'packages' => 'package', 'faq' => 'faq', 'partners' => 'partner'];
+    public const BLOCK_KIND = ['services' => 'service', 'solutions' => 'solution', 'products' => 'product', 'projects' => 'project', 'testimonials' => 'testimonial', 'values' => 'value', 'stats' => 'stat', 'packages' => 'package', 'faq' => 'faq', 'partners' => 'partner', 'news' => 'news'];
+    /** Sub-fields of list fields: slides and gallery photos. */
+    public const SLIDE_FIELDS = ['image' => 'image', 'video' => 'video', 'title' => 'text', 'text' => 'textarea', 'button_label' => 'text', 'button_url' => 'text'];
+    public const PHOTO_FIELDS = ['image' => 'image', 'caption' => 'text'];
     public const BACKGROUNDS = ['auto' => 'Automatic (alternating)', 'white' => 'White', 'light' => 'Light grey', 'brand' => 'Brand colour', 'dark' => 'Dark'];
 
     /** Header, body and footer design options (v3.5). [label, type, options-or-default, group] */
@@ -70,6 +83,8 @@ class Site
         'site_header_style' => ['Header style', 'select', ['light' => 'Light', 'dark' => 'Dark', 'brand' => 'Brand colour'], 'header'],
         'site_header_sticky' => ['Keep header visible when scrolling', 'bool', '1', 'header'],
         'site_topbar' => ['Show top contact bar', 'bool', '1', 'header'],
+        'site_topbar_email' => ['Show the email address in the top bar', 'bool', '1', 'header'],
+        'site_topbar_social' => ['Show social media icons in the top bar', 'bool', '1', 'header'],
         'site_menu_align' => ['Menu position', 'select', ['right' => 'Right', 'center' => 'Centre'], 'header'],
         'site_logo_height' => ['Logo height (px)', 'number', '46', 'header'],
         'site_cta_label' => ['Header button label', 'text', 'Get a quote', 'header'],
@@ -138,17 +153,104 @@ class Site
                     'bool' => !empty($v) && $v !== '0' && $v !== 'false',
                     'number' => max(0, min(60, (int) $v)),
                     'select' => isset($def[2][(string) $v]) ? (string) $v : array_key_first($def[2]),
-                    'image' => preg_match('#^uploads/site/[A-Za-z0-9._-]+$#', (string) $v) ? (string) $v : '',
-                    'markdown' => mb_substr((string) $v, 0, 20000),
-                    'textarea' => mb_substr((string) $v, 0, 2000),
-                    default => mb_substr(trim((string) $v), 0, 255),
+                    'slides' => self::cleanList($v, self::SLIDE_FIELDS, 12),
+                    'gallery' => self::cleanList($v, self::PHOTO_FIELDS, 60),
+                    default => self::cleanValue($def[1], $v),
                 };
             }
+            if ($type === 'video') $b['embed_url'] = self::embedUrl($b['embed_url']) !== '' ? $b['embed_url'] : '';
             $b['bg'] = isset(self::BACKGROUNDS[(string) ($raw['bg'] ?? '')]) ? (string) $raw['bg'] : 'auto';
             $b['anchor'] = trim((string) preg_replace('/[^a-z0-9-]+/', '-', strtolower((string) ($raw['anchor'] ?? ''))), '-');
             $out[] = $b;
         }
         return $out;
+    }
+
+    /** Uploaded website files: images, or MP4/WebM videos for video fields. Sub-folders allowed, no "..". */
+    public static function mediaPath($v, bool $video = false): string
+    {
+        $v = (string) $v;
+        $ext = $video ? 'mp4|webm' : 'png|jpe?g|gif|webp|svg';
+        return preg_match('#^uploads/site/(?:[A-Za-z0-9_-][A-Za-z0-9._ -]*/)*[A-Za-z0-9_-][A-Za-z0-9._ -]*\.(' . $ext . ')$#i', $v) && !str_contains($v, '..') ? $v : '';
+    }
+
+    private static function cleanValue(string $type, $v): string|bool
+    {
+        if (is_array($v)) $v = '';
+        return match ($type) {
+            'image' => self::mediaPath($v),
+            'video' => self::mediaPath($v, true),
+            'markdown' => mb_substr((string) $v, 0, 20000),
+            'textarea' => mb_substr((string) $v, 0, 2000),
+            default => mb_substr(trim((string) $v), 0, 255),
+        };
+    }
+
+    /** List fields (slides, gallery photos) arrive as JSON from the builder; empty rows are dropped. */
+    private static function cleanList($v, array $fields, int $max): array
+    {
+        if (is_string($v)) $v = json_decode($v, true);
+        if (!is_array($v)) return [];
+        $out = [];
+        foreach (array_slice(array_values($v), 0, $max) as $row) {
+            if (!is_array($row)) continue;
+            $r = [];
+            foreach ($fields as $f => $t) $r[$f] = self::cleanValue($t, $row[$f] ?? '');
+            if (implode('', $r) !== '') $out[] = $r;
+        }
+        return $out;
+    }
+
+    /** YouTube / Vimeo page link → privacy-friendly embed URL; anything else → ''. */
+    public static function embedUrl(?string $url): string
+    {
+        $url = trim((string) $url);
+        if (preg_match('#^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})#', $url, $m)) return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0';
+        if (preg_match('#^https?://(?:www\.|player\.)?vimeo\.com/(?:video/)?(\d{6,12})#', $url, $m)) return 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1';
+        return '';
+    }
+
+    /**
+     * Partner logos: items from Content → Partners plus image files in the partners folder.
+     * A sub-folder name becomes the group, e.g. uploads/site/partners/Clients/acme.png → group "Clients".
+     */
+    public static function partners(string $group = ''): array
+    {
+        $list = self::items('partner');
+        $known = array_flip(array_filter(array_column($list, 'image_path')));
+        $root = FCPATH . self::PARTNER_DIR;
+        if (is_dir($root)) {
+            $files = [];
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $f) {
+                $rel = self::PARTNER_DIR . '/' . str_replace('\\', '/', substr($f->getPathname(), strlen($root) + 1));
+                if (!$f->isFile() || self::mediaPath($rel) === '' || isset($known[$rel])) continue;
+                $sub = trim(str_replace('\\', '/', substr($f->getPath(), strlen($root))), '/');
+                $files[$rel] = ['id' => 0, 'title' => ucwords(trim((string) preg_replace('/[-_]+/', ' ', preg_replace('/^\d+[-_ ]*/', '', pathinfo($f->getFilename(), PATHINFO_FILENAME))))) ?: 'Partner',
+                    'subtitle' => $sub !== '' ? str_replace('/', ' / ', $sub) : null, 'image_path' => $rel, 'link_url' => null, 'body' => '', 'icon' => null, 'featured' => 1];
+            }
+            ksort($files, SORT_NATURAL | SORT_FLAG_CASE);
+            $list = array_merge($list, array_values($files));
+        }
+        if ($group !== '') $list = array_values(array_filter($list, static fn($p) => strcasecmp(trim((string) $p['subtitle']), trim($group)) === 0));
+        return $list;
+    }
+
+    /** Address for a news article: /news/12-title-words */
+    public static function newsUrl(array $it): string
+    {
+        return base_url('news/' . (int) $it['id'] . '-' . trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower(mb_substr((string) $it['title'], 0, 70))), '-'));
+    }
+
+    /**
+     * Email link that spam robots cannot read: the address is stored reversed and base64-encoded and
+     * put back together by a tiny script; without JavaScript visitors see "name [at] domain".
+     */
+    public static function email(string $email, string $label = '', string $attrs = '', string $iconHtml = ''): string
+    {
+        if ($email === '') return '';
+        if (self::setting('site_email_protect', '1') === '0') return '<a href="mailto:' . esc($email) . '"' . $attrs . '>' . $iconHtml . esc($label !== '' ? $label : $email) . '</a>';
+        $shown = $label !== '' ? esc($label) : esc(str_replace(['@', '.'], [' [at] ', ' [dot] '], $email));
+        return '<a href="#" data-em="' . esc(base64_encode(strrev($email))) . '"' . ($label !== '' ? ' data-em-label' : '') . $attrs . '>' . $iconHtml . '<span>' . $shown . '</span></a>';
     }
 
     public static function blocksFor(array $page): array
@@ -164,7 +266,7 @@ class Site
         $kinds = [];
         foreach ($blocks as $b) if (isset(self::BLOCK_KIND[$b['type']])) $kinds[self::BLOCK_KIND[$b['type']]] = true;
         $items = [];
-        foreach (array_keys($kinds) as $k) $items[$k] = self::items($k);
+        foreach (array_keys($kinds) as $k) $items[$k] = $k === 'partner' ? self::partners() : self::items($k);
         $hasContact = in_array('contact', array_column($blocks, 'type'), true);
         return view('site/page', ['page' => $page, 'blocks' => $blocks, 'items' => $items, 'site' => self::info(), 'design' => self::design(), 'menu' => self::menu(),
             'services' => $hasContact ? ($items['service'] ?? self::items('service')) : [], 'user' => session('its_user'), 'preview' => $preview]);
@@ -194,6 +296,14 @@ class Site
         return \Config\Database::connect()->tableExists('site_pages');
     }
 
+    private static ?array $published = null;
+
+    public static function hasPage(string $slug): bool
+    {
+        self::$published ??= array_flip(array_column(\Config\Database::connect()->table('site_pages')->select('slug')->where('published', 1)->get()->getResultArray(), 'slug'));
+        return isset(self::$published[$slug]);
+    }
+
     public static function menu(): array
     {
         return \Config\Database::connect()->table('site_pages')->select('slug, title, menu_label')->where('published', 1)->where('show_in_menu', 1)->orderBy('menu_order')->orderBy('id')->get()->getResultArray();
@@ -201,7 +311,8 @@ class Site
 
     public static function items(string $kind, bool $featuredOnly = false): array
     {
-        $q = \Config\Database::connect()->table('site_items')->where('kind', $kind)->where('active', 1)->orderBy('sort_order')->orderBy('id');
+        $q = \Config\Database::connect()->table('site_items')->where('kind', $kind)->where('active', 1);
+        if ($kind === 'news') $q->orderBy('id', 'DESC'); else $q->orderBy('sort_order')->orderBy('id');
         if ($featuredOnly) $q->where('featured', 1);
         return $q->get()->getResultArray();
     }

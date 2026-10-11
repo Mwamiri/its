@@ -10,8 +10,10 @@ $img = static fn(string $path, string $alt, string $icon, int $seed) => $path !=
 
 switch ($b['type']) {
 case 'hero':
-    $split = $b['style'] === 'split'; ?>
-<section class="hero <?= $split ? 'split-hero' : 'center' ?>"<?= $id ?>><div class="wrap">
+    $split = $b['style'] === 'split'; $bgHero = $b['style'] === 'background'; ?>
+<section class="hero <?= $split ? 'split-hero' : 'center' ?><?= $bgHero ? ' bg-hero' : '' ?>"<?= $id ?>>
+<?php if ($bgHero) { ?><div class="bg-media" aria-hidden="true"><?php if ($t('video') !== '') { ?><video autoplay muted loop playsinline preload="metadata"<?= $t('image') !== '' ? ' poster="' . esc(base_url($b['image'])) . '"' : '' ?>><source src="<?= esc(base_url($b['video'])) ?>" type="video/<?= str_ends_with(strtolower($b['video']), '.webm') ? 'webm' : 'mp4' ?>"></video><?php } elseif ($t('image') !== '') { ?><img src="<?= esc(base_url($b['image'])) ?>" alt="" fetchpriority="high"><?php } ?></div><?php } ?>
+<div class="wrap">
   <div>
     <?php if (!$split && $slug !== 'home') { ?><p class="eyebrow"><?= esc($page['title']) ?></p><?php } elseif ($site['tagline'] && $slug === 'home') { ?><p class="eyebrow"><?= esc($site['tagline']) ?></p><?php } ?>
     <h1><?= esc($t('title', $page['title'])) ?></h1>
@@ -89,14 +91,64 @@ case 'faq': ?>
 <div class="faq"><?php foreach ($list as $it) { ?><details><summary><?= esc($it['title']) ?></summary><?= Site::md($it['body']) ?></details><?php } ?></div></div></section>
 <?php break;
 
-case 'partners': ?>
-<section class="sec <?= $cls ?>"<?= $id ?>><div class="wrap"><?php $head('Trusted brands', $t('title', 'Brands and partners we work with'), $t('subtitle')); ?>
-<div class="logos"><?php foreach ($list as $it) { ?><div class="logo"><?= $it['image_path'] ? '<img src="' . esc(base_url($it['image_path'])) . '" alt="' . esc($it['title']) . '" loading="lazy">' : esc($it['title']) ?></div><?php } ?></div></div></section>
+case 'partners':
+    $logo = static function (array $it) use ($b): string {
+        $inner = $it['image_path'] ? '<img src="' . esc(base_url($it['image_path'])) . '" alt="' . esc($it['title']) . '" loading="lazy">' : '<span class="logo-name">' . esc($it['title']) . '</span>';
+        if (!empty($b['show_names']) && $it['image_path']) $inner .= '<small>' . esc($it['title']) . '</small>';
+        $url = (string) ($it['link_url'] ?? '');
+        $tip = esc($it['title'] . ($it['subtitle'] ? ' (' . $it['subtitle'] . ')' : ''));
+        return preg_match('#^https?://#i', $url) ? '<a class="logo" href="' . esc($url) . '" target="_blank" rel="noopener" title="' . $tip . '">' . $inner . '</a>' : '<div class="logo" title="' . $tip . '">' . $inner . '</div>';
+    };
+    $logoCls = 'logos' . (!empty($b['colour']) ? ' in-colour' : '') . (!empty($b['show_names']) ? ' named' : ''); ?>
+<section class="sec <?= $cls ?>"<?= $b['anchor'] !== '' ? $id : ' id="partners"' ?>><div class="wrap"><?php $head($b['group'] !== '' ? $b['group'] : 'Trusted by', $t('title', 'Our clients and partners'), $t('subtitle')); ?>
+<?php if ($b['style'] === 'slider' && count($list) > 2) { ?>
+<div class="marquee <?= esc($b['speed']) ?>" style="--n:<?= count($list) ?>"><div class="<?= $logoCls ?> marquee-track"><?php foreach ($list as $it) echo $logo($it); ?><?php foreach ($list as $it) echo str_replace(['<a class="logo"', '<div class="logo"'], ['<a class="logo" tabindex="-1" aria-hidden="true"', '<div class="logo" aria-hidden="true"'], $logo($it)); ?></div></div>
+<?php } else { ?><div class="<?= $logoCls ?>"><?php foreach ($list as $it) echo $logo($it); ?></div><?php } ?>
+<?php if ($slug !== 'partners' && Site::hasPage('partners')) { ?><p style="text-align:center;margin-top:22px"><a href="<?= base_url('partners') ?>">See all our clients and partners →</a></p><?php } ?></div></section>
+<?php break;
+
+case 'slider': $slides = $b['slides']; if (!$slides) break; ?>
+<section class="slider h-<?= esc($b['height']) ?> ov-<?= esc($b['overlay']) ?> al-<?= esc($b['align']) ?>"<?= $id ?> aria-roledescription="carousel" aria-label="<?= esc($site['name']) ?> highlights" data-slider data-interval="<?= (int) $b['interval'] ?>">
+<div class="slides">
+<?php foreach ($slides as $i => $s) { $hTag = $i === 0 && !empty($first) ? 'h1' : 'h2'; ?><div class="slide<?= $i === 0 ? ' is-on' : '' ?>" role="group" aria-roledescription="slide" aria-label="<?= $i + 1 ?> of <?= count($slides) ?>"<?= $i ? ' aria-hidden="true"' : '' ?>>
+  <div class="bg-media" aria-hidden="true"><?php if ($s['video'] !== '') { ?><video muted loop playsinline preload="<?= $i ? 'none' : 'metadata' ?>"<?= $s['image'] !== '' ? ' poster="' . esc(base_url($s['image'])) . '"' : '' ?>><source src="<?= esc(base_url($s['video'])) ?>" type="video/<?= str_ends_with(strtolower($s['video']), '.webm') ? 'webm' : 'mp4' ?>"></video><?php } elseif ($s['image'] !== '') { ?><img src="<?= esc(base_url($s['image'])) ?>" alt="" <?= $i ? 'loading="lazy"' : 'fetchpriority="high"' ?>><?php } else { echo Site::cover('spark', $p, $a, $i + 3); } ?></div>
+  <?php if ($s['title'] !== '' || $s['text'] !== '' || $s['button_label'] !== '') { ?><div class="wrap slide-copy"><div><?php if ($s['title'] !== '') { ?><<?= $hTag ?> class="slide-title"><?= esc($s['title']) ?></<?= $hTag ?>><?php } ?><?php if ($s['text'] !== '') { ?><p class="lead"><?= nl2br(esc($s['text'])) ?></p><?php } ?><?php if ($s['button_label'] !== '') { ?><div class="hero-cta"><a class="btn btn-p" href="<?= esc(Site::link($s['button_url'] ?: 'contact')) ?>"<?= $i ? ' tabindex="-1"' : '' ?>><?= esc($s['button_label']) ?></a></div><?php } ?></div></div><?php } ?>
+</div><?php } ?>
+</div>
+<?php if (count($slides) > 1) { ?><button class="sl-nav prev" type="button" aria-label="Previous slide">‹</button><button class="sl-nav next" type="button" aria-label="Next slide">›</button>
+<div class="sl-dots"><?php foreach ($slides as $i => $s) { ?><button type="button" aria-label="Go to slide <?= $i + 1 ?>" aria-current="<?= $i === 0 ? 'true' : 'false' ?>"></button><?php } ?></div><?php } ?>
+</section>
+<?php break;
+
+case 'video': $embed = Site::embedUrl($b['embed_url']); if ($b['video'] === '' && $embed === '') break;
+    $player = $b['video'] !== ''
+        ? '<video ' . (!empty($b['autoplay']) ? 'autoplay muted loop playsinline' : 'controls playsinline') . ' preload="metadata"' . ($b['image'] !== '' ? ' poster="' . esc(base_url($b['image'])) . '"' : '') . '><source src="' . esc(base_url($b['video'])) . '" type="video/' . (str_ends_with(strtolower($b['video']), '.webm') ? 'webm' : 'mp4') . '">Your browser cannot play this video.</video>'
+        : '<iframe src="' . esc($embed . (!empty($b['autoplay']) ? '&autoplay=1&mute=1&muted=1&loop=1' : '')) . '" title="' . esc($t('title', 'Video')) . '" loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'; ?>
+<section class="sec <?= $cls ?>"<?= $id ?>><div class="wrap<?= $b['layout'] === 'split' ? ' split' : '' ?>">
+<?php if ($b['layout'] === 'split') { ?><div class="video-box"><?= $player ?></div><div class="prose" style="margin:0"><?php if ($t('title') !== '') { ?><h2><?= esc($b['title']) ?></h2><?php } ?><?= Site::md($b['text']) ?></div>
+<?php } else { ?><?php if ($t('title') !== '' || $t('text') !== '') { ?><div class="sec-head"><?php if ($t('title') !== '') { ?><h2><?= esc($b['title']) ?></h2><?php } ?><?= Site::md($b['text']) ?></div><?php } ?><div class="video-box wide"><?= $player ?></div><?php } ?>
+</div></section>
+<?php break;
+
+case 'gallery': if (!$b['images']) break; ?>
+<section class="sec <?= $cls ?>"<?= $id ?>><div class="wrap"><?php $head('', $t('title'), $t('subtitle')); ?>
+<div class="gallery cols-<?= esc($b['columns']) ?>" data-gallery><?php foreach ($b['images'] as $g) { if ($g['image'] === '') continue; ?><figure><a href="<?= esc(base_url($g['image'])) ?>" data-full><img src="<?= esc(base_url($g['image'])) ?>" alt="<?= esc($g['caption'] ?: $t('title', 'Photo')) ?>" loading="lazy"></a><?php if ($g['caption'] !== '') { ?><figcaption><?= esc($g['caption']) ?></figcaption><?php } ?></figure><?php } ?></div></div></section>
+<?php break;
+
+case 'counters': $rows = []; foreach (Site::lines($b['lines']) as $ln) { [$num, $lab] = array_map('trim', explode('|', $ln, 2) + [1 => '']); if ($num !== '') $rows[] = [$num, $lab]; } if (!$rows) break; ?>
+<section class="sec <?= $cls ?>"<?= $id ?>><div class="wrap"><?php $head('', $t('title'), $t('subtitle')); ?>
+<div class="counters"><?php foreach ($rows as [$num, $lab]) { $m = []; preg_match('/^(\D*?)(\d[\d,.]*)(.*)$/u', $num, $m); ?><div class="counter"><strong<?= $m ? ' data-count="' . esc(str_replace(',', '', $m[2])) . '" data-pre="' . esc($m[1]) . '" data-post="' . esc($m[3]) . '"' : '' ?>><?= esc($num) ?></strong><span><?= esc($lab) ?></span></div><?php } ?></div></div></section>
+<?php break;
+
+case 'news': ?>
+<section class="sec <?= $cls ?>"<?= $b['anchor'] !== '' ? $id : ' id="news"' ?>><div class="wrap"><?php $head('Insights', $t('title', 'News and success stories'), $t('subtitle')); ?>
+<div class="grid"><?php foreach ($list as $it) { $u = Site::newsUrl($it); ?><article class="card news-card"><a class="media" href="<?= esc($u) ?>" tabindex="-1" aria-hidden="true"><?= $img((string) $it['image_path'], $it['title'], (string) ($it['icon'] ?: 'chat'), (int) $it['id'] + 11) ?></a><?php if ($it['tags']) { ?><span class="tag"><?= esc(trim(explode(',', $it['tags'])[0])) ?></span><?php } ?><h3><a href="<?= esc($u) ?>"><?= esc($it['title']) ?></a></h3><p><?= esc($it['subtitle'] ?: mb_strimwidth(trim(strip_tags(Site::md($it['body']))), 0, 150, '…')) ?></p><div class="card-actions"><small style="color:var(--muted)"><?= esc(date('j M Y', strtotime((string) (($it['created_at'] ?? '') ?: ($it['updated_at'] ?? '')) ?: 'now'))) ?></small><a href="<?= esc($u) ?>" style="margin-inline-start:auto">Read more →</a></div></article><?php } ?></div>
+<?php if ($slug !== 'news' && Site::hasPage('news')) { ?><p style="text-align:center;margin-top:28px"><a class="btn btn-o" href="<?= base_url('news') ?>">More news</a></p><?php } ?></div></section>
 <?php break;
 
 case 'cta': ?>
 <section class="sec <?= $cls ?>"<?= $id ?>><div class="wrap"><div class="cta <?= esc($b['style']) ?>"><div><h2><?= esc($t('title', 'Need technology support?')) ?></h2><p><?= esc($t('text', 'Talk to ' . $site['name'] . ' for professional advice, quality products and dependable ICT services.')) ?></p></div>
-<div class="hero-cta"><a class="btn btn-w" href="<?= esc(Site::link($t('button_url', 'contact#contact-form'))) ?>"><?= esc($t('button_label', 'Request a quote')) ?></a><?php if ($wa !== '') { ?><a class="btn btn-a" href="<?= esc($waLink()) ?>" target="_blank" rel="noopener">WhatsApp</a><?php } elseif ($site['email']) { ?><a class="btn btn-a" href="mailto:<?= esc($site['email']) ?>">Email us</a><?php } ?></div></div></div></section>
+<div class="hero-cta"><a class="btn btn-w" href="<?= esc(Site::link($t('button_url', 'contact#contact-form'))) ?>"><?= esc($t('button_label', 'Request a quote')) ?></a><?php if ($wa !== '') { ?><a class="btn btn-a" href="<?= esc($waLink()) ?>" target="_blank" rel="noopener">WhatsApp</a><?php } elseif ($site['email']) { ?><?= Site::email($site['email'], 'Email us', ' class="btn btn-a"') ?><?php } ?></div></div></div></section>
 <?php break;
 
 case 'contact': ?>
@@ -113,12 +165,12 @@ case 'contact': ?>
     <div class="full"><button class="btn btn-p" type="submit">Send message</button> <span style="color:var(--muted);font-size:14px">We reply by email or phone. Please give at least one.</span></div>
   </form></div>
   <div class="card"><h2>Get in touch</h2><ul class="info-list">
-    <?php if ($site['email']) { ?><li><?= Site::icon('mail') ?><div><strong>Email</strong><a href="mailto:<?= esc($site['email']) ?>"><?= esc($site['email']) ?></a></div></li><?php } ?>
+    <?php if ($site['email']) { ?><li><?= Site::icon('mail') ?><div><strong>Email</strong><?= Site::email($site['email']) ?></div></li><?php } ?>
     <?php if ($site['phone']) { ?><li><?= Site::icon('phone') ?><div><strong>Phone</strong><a href="tel:<?= esc($tel) ?>"><?= esc($site['phone']) ?></a></div></li><?php } ?>
     <?php if ($wa !== '') { ?><li><?= Site::icon('chat') ?><div><strong>WhatsApp</strong><a href="<?= esc($waLink()) ?>" target="_blank" rel="noopener">Chat with us</a></div></li><?php } ?>
     <?php if ($site['address']) { ?><li><?= Site::icon('map') ?><div><strong>Visit us</strong><?= nl2br(esc($site['address'])) ?></div></li><?php } ?>
     <?php if ($site['hours']) { ?><li><?= Site::icon('clock') ?><div><strong>Business hours</strong><?= nl2br(esc($site['hours'])) ?></div></li><?php } ?>
-    <li><?= Site::icon('users') ?><div><strong>Existing clients</strong><a href="<?= base_url('its-login') ?>">Log in to the client portal</a> to report an issue and follow progress.</div></li>
+    <li><?= Site::icon('users') ?><div><strong>Existing clients</strong><a href="<?= base_url('its-login?for=client') ?>">Log in to the client portal</a> to report an issue and follow progress.</div></li>
   </ul>
   <?php if (preg_match('#^https://(www\.)?google\.[a-z.]+/maps/embed#i', $site['map_url'])) { ?><iframe class="map" src="<?= esc($site['map_url']) ?>" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map to our office"></iframe><?php } ?>
   </div>

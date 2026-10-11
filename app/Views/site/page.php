@@ -17,14 +17,17 @@ $anchor = static fn(string $t) => trim((string) preg_replace('/[^a-z0-9]+/', '-'
 $socials = array_filter(['facebook' => $site['facebook'], 'linkedin' => $site['linkedin'], 'x' => $site['x'], 'instagram' => $site['instagram'], 'youtube' => $site['youtube']], static fn($u) => preg_match('#^https?://#i', (string) $u));
 $org = ['@context' => 'https://schema.org', '@type' => 'LocalBusiness', 'name' => $site['name'], 'url' => base_url(), 'description' => $site['meta_description'] ?: $site['tagline']];
 if ($logoUrl) { $org['logo'] = $logoUrl; $org['image'] = $logoUrl; }
-if ($site['email']) $org['email'] = $site['email'];
+$protect = Site::setting('site_email_protect', '1') !== '0';
+if ($site['email'] && !$protect) $org['email'] = $site['email'];
 if ($site['phone']) $org['telephone'] = $site['phone'];
 if ($site['address']) $org['address'] = ['@type' => 'PostalAddress', 'streetAddress' => preg_replace('/\s+/', ' ', $site['address'])];
 if ($socials) $org['sameAs'] = array_values($socials);
-if ($site['email'] || $site['phone']) $org['contactPoint'] = array_filter(['@type' => 'ContactPoint', 'contactType' => 'customer support', 'email' => $site['email'] ?: null, 'telephone' => $site['phone'] ?: null]);
+if (($site['email'] && !$protect) || $site['phone']) $org['contactPoint'] = array_filter(['@type' => 'ContactPoint', 'contactType' => 'customer support', 'email' => $protect ? null : ($site['email'] ?: null), 'telephone' => $site['phone'] ?: null]);
 $jsonFlags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP;
 $user = $user ?? null;
 $portalUrl = $user ? base_url(($user['role'] ?? '') === 'client' ? 'its-portal' : 'its-dashboard') : base_url('its-login');
+$clientUrl = $user ? $portalUrl : base_url('its-login?for=client');
+$socialMark = ['facebook' => 'f', 'linkedin' => 'in', 'x' => 'X', 'instagram' => 'ig', 'youtube' => 'yt'];
 $fontStack = ['system' => '"Segoe UI",Roboto,Helvetica,Arial,sans-serif', 'inter' => 'Inter,"Segoe UI",sans-serif', 'poppins' => 'Poppins,"Segoe UI",sans-serif', 'montserrat' => 'Montserrat,"Segoe UI",sans-serif', 'roboto' => 'Roboto,"Segoe UI",sans-serif', 'open-sans' => '"Open Sans","Segoe UI",sans-serif'][$d['font']];
 $btnRadius = ['rounded' => '12px', 'pill' => '999px', 'square' => '4px'][$d['button_style']];
 $space = ['compact' => 'clamp(32px,4vw,56px)', 'normal' => 'clamp(44px,5.5vw,84px)', 'airy' => 'clamp(64px,8vw,120px)'][$d['spacing']];
@@ -117,8 +120,8 @@ a{color:var(--p)}img{max-width:100%;height:auto}h1,h2,h3{line-height:1.2;text-wr
 <a class="skip" href="#main">Skip to content</a>
 <?php if ($site['announcement'] !== '') { ?><div class="announce"><?= esc($site['announcement']) ?></div><?php } ?>
 <?php if ($d['topbar']) { ?><div class="topbar"><div class="wrap">
-  <div style="display:flex;flex-wrap:wrap;gap:6px 22px"><?php if ($site['email']) { ?><a href="mailto:<?= esc($site['email']) ?>"><?= Site::icon('mail') ?><?= esc($site['email']) ?></a><?php } ?><?php if ($site['phone']) { ?><a href="tel:<?= esc($tel) ?>"><?= Site::icon('phone') ?><?= esc($site['phone']) ?></a><?php } ?></div>
-  <div style="display:flex;flex-wrap:wrap;gap:6px 22px"><?php if ($site['hours']) { ?><span><?= Site::icon('clock') ?><?= esc(Site::lines($site['hours'])[0] ?? '') ?></span><?php } ?><a href="<?= esc($portalUrl) ?>"><?= Site::icon('users') ?><?= $user ? 'My workspace' : 'Client portal' ?></a></div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px 22px"><?php if ($site['email'] && $d['topbar_email']) { echo Site::email($site['email'], '', '', Site::icon('mail')); } ?><?php if ($site['phone']) { ?><a href="tel:<?= esc($tel) ?>"><?= Site::icon('phone') ?><?= esc($site['phone']) ?></a><?php } ?></div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px 22px"><?php if ($site['hours']) { ?><span><?= Site::icon('clock') ?><?= esc(Site::lines($site['hours'])[0] ?? '') ?></span><?php } ?><?php if ($socials && $d['topbar_social']) { ?><span class="top-social"><?php foreach ($socials as $k => $u) { ?><a href="<?= esc($u) ?>" target="_blank" rel="noopener" aria-label="<?= esc(ucfirst($k)) ?>"><?= esc($socialMark[$k]) ?></a><?php } ?></span><?php } ?><a href="<?= esc($clientUrl) ?>"><?= Site::icon('users') ?><?= $user ? 'My workspace' : 'Client portal' ?></a></div>
 </div></div><?php } ?>
 <header class="nav"><div class="wrap">
   <a class="brand" href="<?= base_url() ?>" aria-label="<?= esc($site['name']) ?> home"><?php if ($logoUrl) { ?><img src="<?= esc($logoUrl) ?>" alt="<?= esc($site['name']) ?> logo" height="<?= (int) $d['logo_height'] ?>"><?php } else { ?><span class="brand-mark"><?= Site::icon('laptop') ?></span><span><?= esc($site['name']) ?><?php if ($site['tagline']) { ?><small><?= esc($site['tagline']) ?></small><?php } ?></span><?php } ?></a>
@@ -132,24 +135,27 @@ a{color:var(--p)}img{max-width:100%;height:auto}h1,h2,h3{line-height:1.2;text-wr
 <?php $alt = false; foreach ($blocks as $i => $b) {
     $kind = Site::BLOCK_KIND[$b['type']] ?? null;
     $list = $kind ? ($items[$kind] ?? []) : [];
+    if ($b['type'] === 'partners' && $b['group'] !== '') $list = Site::partners($b['group']);
+    $first = $i === 0;
     if ($kind && !empty($b['featured_only'])) $list = array_values(array_filter($list, static fn($it) => (int) $it['featured'] === 1));
     if ($kind && !empty($b['limit'])) $list = array_slice($list, 0, (int) $b['limit']);
     if ($kind && !$list) continue;
-    if ($b['type'] === 'hero') { echo view('site/_block', ['b' => $b, 'cls' => '', 'list' => [], 'ctx' => compact('site', 'page', 'slug', 'p', 'a', 'wa', 'waLink', 'tel', 'anchor', 'services', 'items')]); continue; }
+    if ($b['type'] === 'hero') { echo view('site/_block', ['b' => $b, 'cls' => '', 'list' => [], 'ctx' => compact('site', 'page', 'slug', 'p', 'a', 'wa', 'waLink', 'tel', 'anchor', 'services', 'items', 'first')]); continue; }
+    if ($b['type'] === 'slider') { echo view('site/_block', ['b' => $b, 'cls' => '', 'list' => [], 'ctx' => compact('site', 'page', 'slug', 'p', 'a', 'wa', 'waLink', 'tel', 'anchor', 'services', 'items', 'first')]); continue; }
     if ($b['type'] === 'spacer') { echo '<div class="spacer-' . esc($b['size']) . '" aria-hidden="true"></div>'; continue; }
     if ($b['bg'] === 'auto') { $alt = !$alt; $cls = $b['type'] === 'cta' ? '' : ($alt ? '' : 'alt'); } else { $cls = ['white' => '', 'light' => 'alt', 'brand' => 'brand', 'dark' => 'dark'][$b['bg']]; }
-    echo view('site/_block', ['b' => $b, 'cls' => $cls, 'list' => $list, 'ctx' => compact('site', 'page', 'slug', 'p', 'a', 'wa', 'waLink', 'tel', 'anchor', 'services', 'items')]);
+    echo view('site/_block', ['b' => $b, 'cls' => $cls, 'list' => $list, 'ctx' => compact('site', 'page', 'slug', 'p', 'a', 'wa', 'waLink', 'tel', 'anchor', 'services', 'items', 'first')]);
 } ?>
 </main>
 
 <footer class="foot"><div class="wrap">
   <div class="foot-grid">
-    <div><h3><?= esc($site['name']) ?></h3><p><?= nl2br(esc($d['footer_about'] ?: ($site['meta_description'] ?: ($site['tagline'] ?: 'Reliable computer and ICT solutions.')))) ?></p><?php if ($socials) { ?><div class="social"><?php foreach ($socials as $k => $u) { ?><a href="<?= esc($u) ?>" target="_blank" rel="noopener" aria-label="<?= esc(ucfirst($k)) ?>"><?= esc(['facebook' => 'f', 'linkedin' => 'in', 'x' => 'X', 'instagram' => 'ig', 'youtube' => 'yt'][$k]) ?></a><?php } ?></div><?php } ?></div>
+    <div><h3><?= esc($site['name']) ?></h3><p><?= nl2br(esc($d['footer_about'] ?: ($site['meta_description'] ?: ($site['tagline'] ?: 'Reliable computer and ICT solutions.')))) ?></p><?php if ($socials) { ?><div class="social"><?php foreach ($socials as $k => $u) { ?><a href="<?= esc($u) ?>" target="_blank" rel="noopener" aria-label="<?= esc(ucfirst($k)) ?>"><?= esc($socialMark[$k]) ?></a><?php } ?></div><?php } ?></div>
     <?php if ($d['footer_menu']) { ?><div><h3>Company</h3><ul><?php foreach ($menu as $m) { ?><li><a href="<?= esc(Site::url($m['slug'])) ?>"><?= esc($m['menu_label'] ?: $m['title']) ?></a></li><?php } ?></ul></div><?php } ?>
     <?php if ($d['footer_services']) { ?><div><h3>Services</h3><ul><?php foreach (array_slice(Site::items('service'), 0, 7) as $s) { ?><li><a href="<?= base_url('services') ?>#<?= esc($anchor($s['title'])) ?>"><?= esc($s['title']) ?></a></li><?php } ?></ul></div><?php } ?>
-    <div><h3>Contact</h3><ul class="info-list" style="gap:10px"><?php if ($site['email']) { ?><li><?= Site::icon('mail') ?><a href="mailto:<?= esc($site['email']) ?>"><?= esc($site['email']) ?></a></li><?php } ?><?php if ($site['phone']) { ?><li><?= Site::icon('phone') ?><a href="tel:<?= esc($tel) ?>"><?= esc($site['phone']) ?></a></li><?php } ?><?php if ($site['address']) { ?><li><?= Site::icon('map') ?><span><?= nl2br(esc($site['address'])) ?></span></li><?php } ?><li><?= Site::icon('users') ?><a href="<?= base_url('its-login') ?>">Client portal &amp; staff login</a></li></ul></div>
+    <div><h3>Contact</h3><ul class="info-list" style="gap:10px"><?php if ($site['email']) { ?><li><?= Site::icon('mail') ?><?= Site::email($site['email']) ?></li><?php } ?><?php if ($site['phone']) { ?><li><?= Site::icon('phone') ?><a href="tel:<?= esc($tel) ?>"><?= esc($site['phone']) ?></a></li><?php } ?><?php if ($site['address']) { ?><li><?= Site::icon('map') ?><span><?= nl2br(esc($site['address'])) ?></span></li><?php } ?><li><?= Site::icon('users') ?><a href="<?= esc($portalUrl) ?>"><?= $user ? 'Open my workspace' : 'Client portal &amp; staff login' ?></a></li></ul></div>
   </div>
-  <div class="foot-bottom"><span>© <?= date('Y') ?> <?= esc($site['name']) ?>. All rights reserved.<?= $site['footer_note'] ? ' ' . esc($site['footer_note']) : '' ?></span><span><a href="<?= base_url('sitemap.xml') ?>">Sitemap</a> · <a href="<?= base_url('its-login') ?>">Login</a></span></div>
+  <div class="foot-bottom"><span>© <?= date('Y') ?> <?= esc($site['name']) ?>. All rights reserved.<?= $site['footer_note'] ? ' ' . esc($site['footer_note']) : '' ?></span><span><a href="<?= base_url('sitemap.xml') ?>">Sitemap</a> · <a href="<?= esc($portalUrl) ?>"><?= $user ? 'My workspace' : 'Login' ?></a></span></div>
 </div></footer>
 <?php if ($wa !== '') { ?><a class="wa" href="<?= esc($waLink('Hello ' . $site['name'] . ', ')) ?>" target="_blank" rel="noopener" aria-label="Chat on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg><span>WhatsApp</span></a><?php } ?>
 <script>
