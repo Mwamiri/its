@@ -179,4 +179,5 @@ $routes->POST('its-site-design', 'ItsSite::saveDesign');
 $routes->GET('sitemap.xml', 'Website::sitemap');
 $routes->GET('robots.txt', 'Website::robots');
 $routes->POST('contact', 'Website::contact');
+$routes->POST('support-request', 'Website::supportRequest');
 $routes->GET('([a-z0-9-]+)', 'Website::page/$1');

@@ -70,6 +70,7 @@ class Site
         'partners' => ['Partner & client logos', ['title' => ['Heading', 'text'], 'subtitle' => ['Intro', 'text'], 'style' => ['Display', 'select', ['slider' => 'Sliding strip', 'grid' => 'Grid']], 'group' => ['Only this group (blank = all)', 'text'], 'speed' => ['Slide speed', 'select', ['normal' => 'Normal', 'slow' => 'Slow', 'fast' => 'Fast']], 'show_names' => ['Show names under logos', 'bool'], 'colour' => ['Show logos in colour', 'bool']]],
         'cta' => ['Call-to-action banner', ['title' => ['Heading', 'text'], 'text' => ['Text', 'textarea'], 'button_label' => ['Button', 'text'], 'button_url' => ['Button link', 'text'], 'style' => ['Colour', 'select', ['brand' => 'Brand gradient', 'accent' => 'Accent', 'dark' => 'Dark']]]],
         'contact' => ['Contact form + details', ['title' => ['Heading', 'text'], 'text' => ['Intro', 'textarea']]],
+        'support' => ['IT Support Request form', ['title' => ['Heading', 'text'], 'text' => ['Intro', 'textarea']]],
         'spacer' => ['Spacer', ['size' => ['Height', 'select', ['s' => 'Small', 'm' => 'Medium', 'l' => 'Large']]]],
     ];
     public const BLOCK_KIND = ['services' => 'service', 'solutions' => 'solution', 'products' => 'product', 'projects' => 'project', 'testimonials' => 'testimonial', 'values' => 'value', 'stats' => 'stat', 'packages' => 'package', 'faq' => 'faq', 'partners' => 'partner', 'news' => 'news'];
@@ -98,6 +99,10 @@ class Site
         'site_footer_about' => ['Footer "about" text', 'textarea', '', 'footer'],
         'site_footer_menu' => ['Show page links in footer', 'bool', '1', 'footer'],
         'site_footer_services' => ['Show services in footer', 'bool', '1', 'footer'],
+        'site_footer_cta' => ['Show "Get a quote" button in footer', 'bool', '1', 'footer'],
+        'site_footer_whatsapp' => ['Show WhatsApp button in footer', 'bool', '1', 'footer'],
+        'site_footer_contact' => ['Show contact info section in footer', 'bool', '1', 'footer'],
+        'site_footer_links' => ['Custom footer links (one per line: Label|URL)', 'textarea', '', 'footer'],
         'site_custom_css' => ['Custom CSS (advanced)', 'css', '', 'footer'],
     ];
     public const FONTS = ['inter' => 'Inter', 'poppins' => 'Poppins', 'montserrat' => 'Montserrat', 'roboto' => 'Roboto', 'open-sans' => 'Open+Sans'];

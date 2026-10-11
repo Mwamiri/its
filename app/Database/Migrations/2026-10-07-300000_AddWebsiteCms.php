@@ -146,6 +146,11 @@ class AddWebsiteCms extends Migration
                     'Contact Mwamiri Computers Limited for computer sales, repairs, networking, CCTV and IT support. Email support@mwamiri.co.ke or send us a message.',
                     'Email us', 'mailto:support@mwamiri.co.ke'),
             ]);
+            $srBlocks = json_encode([
+                ['type' => 'hero', 'id' => bin2hex(random_bytes(5)), 'title' => 'Submit a Support Request', 'subtitle' => 'Tell us about your IT issue and our team will contact you promptly to help resolve it.', 'button_label' => '', 'button_url' => '', 'button2_label' => '', 'button2_url' => '', 'image' => '', 'video' => '', 'style' => 'center', 'show_trust' => false],
+                ['type' => 'support', 'id' => bin2hex(random_bytes(5)), 'title' => 'Describe your issue', 'text' => 'Fill in the form below. We will reply by phone or email as soon as possible.', 'bg' => 'auto'],
+            ]);
+            $this->db->table('site_pages')->insert(['slug' => 'support-request', 'title' => 'IT Support Request', 'menu_label' => 'Support Request', 'show_in_menu' => 0, 'menu_order' => 90, 'hero_title' => 'Submit a Support Request', 'hero_subtitle' => 'Tell us about your IT issue and our team will contact you promptly.', 'hero_cta_label' => '', 'hero_cta_url' => '', 'body' => '', 'sections' => '', 'blocks' => $srBlocks, 'meta_title' => 'Submit a Support Request', 'meta_description' => 'Report a computer, network or equipment issue. Our IT support team will contact you promptly.', 'published' => 1, 'is_system' => 0, 'updated_at' => $now]);
         }
         if (! $this->db->table('site_items')->countAllResults()) {
             $rows = [];

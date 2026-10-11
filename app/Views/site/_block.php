@@ -151,6 +151,35 @@ case 'cta': ?>
 <div class="hero-cta"><a class="btn btn-w" href="<?= esc(Site::link($t('button_url', 'contact#contact-form'))) ?>"><?= esc($t('button_label', 'Request a quote')) ?></a><?php if ($wa !== '') { ?><a class="btn btn-a" href="<?= esc($waLink()) ?>" target="_blank" rel="noopener">WhatsApp</a><?php } elseif ($site['email']) { ?><?= Site::email($site['email'], 'Email us', ' class="btn btn-a"') ?><?php } ?></div></div></div></section>
 <?php break;
 
+case 'support': ?>
+<section class="sec <?= $cls ?>" id="support-form"><div class="wrap contact">
+  <div class="card"><h2><?= esc($t('title', 'Submit a Support Request')) ?></h2><p><?= esc($t('text', 'Fill in the form and our team will contact you promptly. Existing clients can log in to the client portal to track progress.')) ?></p>
+  <form class="form" method="post" action="<?= base_url('support-request') ?>"><?= csrf_field() ?>
+    <input type="hidden" name="t" value="<?= time() ?>"><input type="hidden" name="source" value="<?= esc($slug) ?>">
+    <div class="hp" aria-hidden="true"><label for="sr-website">Leave this empty</label><input id="sr-website" name="website" tabindex="-1" autocomplete="off"></div>
+    <div><label for="sr-name">Full name *</label><input id="sr-name" name="name" maxlength="150" required autocomplete="name" value="<?= esc(old('name') ?? '') ?>"></div>
+    <div><label for="sr-phone">Phone number</label><input id="sr-phone" name="phone" type="tel" maxlength="60" autocomplete="tel" value="<?= esc(old('phone') ?? '') ?>"></div>
+    <div><label for="sr-email">Email address</label><input id="sr-email" name="email" type="email" maxlength="190" autocomplete="email" value="<?= esc(old('email') ?? '') ?>"></div>
+    <div><label for="sr-company">Company / organisation</label><input id="sr-company" name="company" maxlength="150" autocomplete="organization" value="<?= esc(old('company') ?? '') ?>"></div>
+    <div class="full"><label for="sr-device">Device / equipment affected</label><input id="sr-device" name="device" maxlength="300" placeholder="e.g. Dell laptop, Epson printer, office WiFi" value="<?= esc(old('device') ?? '') ?>"></div>
+    <div class="full"><label for="sr-issue">Describe the issue *</label><textarea id="sr-issue" name="issue" rows="5" maxlength="3000" required placeholder="What is happening? When did it start? Any error messages?"><?= esc(old('issue') ?? '') ?></textarea></div>
+    <div><label for="sr-urgency">Urgency</label><select id="sr-urgency" name="urgency">
+      <option value="low"<?= old('urgency') === 'low' ? ' selected' : '' ?>>Low — next available slot</option>
+      <option value="normal"<?= old('urgency') === 'normal' || !old('urgency') ? ' selected' : '' ?>>Normal — within 24 hours</option>
+      <option value="urgent"<?= old('urgency') === 'urgent' ? ' selected' : '' ?>>Urgent — as soon as possible</option>
+    </select></div>
+    <div class="full"><button class="btn btn-p" type="submit">Submit request</button> <span style="color:var(--muted);font-size:14px">We will reply by phone or email.</span></div>
+  </form></div>
+  <div class="card"><h2>Other ways to reach us</h2><ul class="info-list">
+    <?php if ($site['phone']) { ?><li><?= Site::icon('phone') ?><div><strong>Call us</strong><a href="tel:<?= esc($tel) ?>"><?= esc($site['phone']) ?></a></div></li><?php } ?>
+    <?php if ($wa !== '') { ?><li><?= Site::icon('chat') ?><div><strong>WhatsApp</strong><a href="<?= esc($waLink('Hello, I need IT support help with: ')) ?>" target="_blank" rel="noopener">Chat with us</a></div></li><?php } ?>
+    <?php if ($site['email']) { ?><li><?= Site::icon('mail') ?><div><strong>Email</strong><?= Site::email($site['email']) ?></div></li><?php } ?>
+    <?php if ($site['hours']) { ?><li><?= Site::icon('clock') ?><div><strong>Business hours</strong><?= nl2br(esc($site['hours'])) ?></div></li><?php } ?>
+    <li><?= Site::icon('users') ?><div><strong>Existing clients</strong><a href="<?= base_url('its-login?for=client') ?>">Log in to the client portal</a> to track your existing tickets.</div></li>
+  </ul></div>
+</div></section>
+<?php break;
+
 case 'contact': ?>
 <section class="sec <?= $cls ?>" id="contact-form"><div class="wrap contact">
   <div class="card"><h2><?= esc($t('title', 'Send us a message')) ?></h2><p><?= esc($t('text', 'Tell us what you need and we will respond as soon as possible.')) ?></p>
