@@ -2,6 +2,8 @@
 <title><?= esc($title ?? 'App') ?> - <?= esc(\App\Models\SettingModel::get('company_name','IT Support')) ?></title>
 <link rel="manifest" href="<?= base_url('its-manifest') ?>">
 <link rel="stylesheet" href="<?= base_url('assets/tailwind.css') ?>?v=<?= (int) @filemtime(FCPATH . 'assets/tailwind.css') ?>">
+<link rel="stylesheet" href="<?= base_url('assets/vendor/icons/bootstrap-icons.min.css') ?>">
+<script defer src="<?= base_url('assets/vendor/alpine/alpine.min.js') ?>"></script>
 <?php
 $themePalettes = [
     'ocean' => ['#2563eb', '#1746a2', '#eaf1ff', '#10213a', '#2563eb', 'rgba(37,99,235,.14)'],
@@ -49,7 +51,12 @@ footer{padding:24px 16px;text-align:center;color:#8290a3;font-size:.78rem}
 .ui-toolbar label{font-size:12px}.ui-toolbar select{width:auto;margin:0;padding:6px 9px;font-size:12px}.text-size-tools{display:flex;align-items:center;gap:4px}.text-size-tools button{border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);padding:5px 8px;font-weight:700;cursor:pointer}.text-size-tools button[aria-pressed=true]{background:var(--brand-soft);color:var(--brand-dark);border-color:var(--brand)}
 html[data-mode=dark] .ui-toolbar{background:#111b2b;border-color:var(--line)}html[data-mode=dark] .text-size-tools button{background:#172235;color:var(--ink);border-color:var(--line)}html[data-mode=dark] .text-size-tools button[aria-pressed=true]{background:#253855;color:#cfe0ff}
 html[dir=rtl] body{text-align:right}html[dir=rtl] nav form{margin-left:0;margin-right:auto}html[dir=rtl] .ui-toolbar{justify-content:flex-start}
-.flash{border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:14px;font-weight:600}.flash-ok{background:#e9f8ef;border:1px solid #c4ebd1;color:#166534}.flash-err{background:#fff0f0;border:1px solid #f1caca;color:#b42332}
+.flash{display:flex;align-items:flex-start;gap:10px;border-radius:14px;padding:13px 16px;margin-bottom:16px;font-size:14px;font-weight:500;border:1px solid transparent}
+.flash-ok{background:#e9f8ef;border-color:#c4ebd1;color:#166534}.flash-err{background:#fff0f0;border-color:#f1caca;color:#b42332}
+.flash-warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.flash .bi{flex:0 0 auto;font-size:16px;margin-top:1px}.flash-body{flex:1}.flash-close{flex:0 0 auto;border:0;background:transparent;cursor:pointer;color:inherit;opacity:.6;padding:0;line-height:1}.flash-close:hover{opacity:1}
+.toast-stack{position:fixed;bottom:80px;right:16px;z-index:60;display:grid;gap:8px;width:min(340px,calc(100vw - 32px))}
+@media(min-width:1000px){.toast-stack{bottom:16px}}
 @media(max-width:600px){header{padding-top:15px;padding-bottom:15px}.brand h1{font-size:17px}nav{min-height:54px;gap:2px}nav a,nav summary,nav button{padding:8px 10px;font-size:12px}nav .nav-menu{max-width:calc(100vw - 26px)}nav form{margin-inline-start:0}main{padding:20px 13px 48px}.card{padding:16px;border-radius:15px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 html[data-mode=dark]{color-scheme:dark;--ink:#e5edf8;--muted:#a4b2c5;--line:#334155;--paper:#172235;--canvas:#0b1220;--brand-soft:#1c2d49;--banner-start:#081222;--banner-end:#17263b;--shadow:0 8px 26px rgba(0,0,0,.22)}
@@ -151,6 +158,9 @@ nav[aria-label="Main navigation"] details.is-active>summary{background:transpare
 @media(max-width:999px){.appbar{display:none}.tabbar{position:fixed;inset-inline:0;bottom:0;z-index:25;display:flex;background:var(--paper);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}.tabbar a,.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:0;background:transparent;color:var(--muted);font:600 11px sans-serif;text-decoration:none}.tabbar span{font-size:18px}.tabbar [aria-current=page]{color:var(--brand-dark)}body:has(.tabbar){padding-bottom:62px}}
 @media(min-width:1000px){.tabbar{display:none}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+[x-cloak]{display:none!important}
+.sidebar-overlay{position:fixed;inset:0;z-index:35;background:rgba(15,23,42,.5);backdrop-filter:blur(2px)}
+@media(max-width:999px){nav[aria-label="Main navigation"]{position:fixed;inset-block:0;inset-inline-start:0;width:260px;z-index:40;flex-direction:column;align-items:stretch;padding:14px 10px;overflow-y:auto;border-bottom:0;border-inline-end:1px solid var(--line);transform:translateX(-100%);transition:transform .22s ease}nav[aria-label="Main navigation"].nav-open{transform:translateX(0)}}
 .form-grid{display:grid;grid-template-columns:1fr;gap:2px 16px;align-items:start}
 @media(min-width:760px){.form-grid{grid-template-columns:1fr 1fr}}
 .form-grid>.field.wide,.form-grid>:not(.field){grid-column:1/-1}
@@ -172,10 +182,11 @@ html[data-mode=dark] input,html[data-mode=dark] select,html[data-mode=dark] text
 .form-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line);margin-top:4px}
 .char-count{font-size:11px;color:var(--muted);text-align:end;margin:-10px 0 10px}
 button[data-busy]{opacity:.7;pointer-events:none}
-.nav-ico{display:inline-block;width:1.4em;text-align:center;margin-inline-end:6px;font-size:14px}.nav-count{margin-inline-start:auto;min-width:20px;padding:0 6px;border-radius:999px;background:var(--brand);color:#fff;font:700 11px/19px sans-serif;text-align:center}nav .nav-menu a{display:flex;align-items:center}
+.nav-ico{display:inline-block;width:1.4em;text-align:center;margin-inline-end:6px;font-size:16px;vertical-align:-.15em}.nav-count{margin-inline-start:auto;min-width:20px;padding:0 6px;border-radius:999px;background:var(--brand);color:#fff;font:700 11px/19px sans-serif;text-align:center}nav .nav-menu a{display:flex;align-items:center}
 .card>h3:first-child{margin-top:0}#ui-language{width:auto;min-width:130px;margin:0;padding-block:7px}.ui-toolbar select{margin:0}
-</style></head><body>
+</style></head><body x-data="{ nav: false }" @keydown.escape.window="nav = false">
 <a class="skip-link" href="#main">Skip to content</a>
+<div x-cloak x-show="nav" x-transition.opacity class="sidebar-overlay" @click="nav = false" aria-hidden="true"></div>
 <?php
 $companyName = \App\Models\SettingModel::get('company_name', 'IT Support');
 $companyLogo = \App\Models\SettingModel::get('company_logo', '');
@@ -195,48 +206,48 @@ $on = static fn(string ...$prefixes): bool => (bool) array_filter($prefixes, sta
 // v3 menu: grouped by job; every item is filtered by the role's permissions below.
 $navGroups = [
     ['label' => 'Overview', 'items' => [
-        ['label' => 'Dashboard', 'url' => 'its-dashboard', 'icon' => '🏠', 'active' => $on('its-dashboard')],
+        ['label' => 'Dashboard', 'url' => 'its-dashboard', 'icon' => 'house', 'active' => $on('its-dashboard')],
     ]],
     ['label' => 'Service desk', 'items' => [
-        ['label' => 'Tickets', 'url' => 'its-tickets', 'icon' => '🎫', 'active' => $on('its-tickets') || $activeRoute === 'its-report'],
-        ['label' => 'Board', 'url' => 'its-board', 'icon' => '🗂', 'active' => $on('its-board')],
-        ['label' => 'Quotes', 'url' => 'its-quotes', 'icon' => '🧾', 'active' => $on('its-quotes')],
-        ['label' => 'Knowledge Base', 'url' => 'its-kb', 'icon' => '📚', 'active' => $on('its-kb')],
+        ['label' => 'Tickets', 'url' => 'its-tickets', 'icon' => 'ticket-detailed', 'active' => $on('its-tickets') || $activeRoute === 'its-report'],
+        ['label' => 'Board', 'url' => 'its-board', 'icon' => 'kanban', 'active' => $on('its-board')],
+        ['label' => 'Quotes', 'url' => 'its-quotes', 'icon' => 'receipt', 'active' => $on('its-quotes')],
+        ['label' => 'Knowledge Base', 'url' => 'its-kb', 'icon' => 'journal-text', 'active' => $on('its-kb')],
     ]],
     ['label' => 'Customers', 'items' => [
-        ['label' => 'Clients', 'url' => 'its-clients', 'icon' => '🏢', 'active' => $on('its-clients')],
-        ['label' => 'Assets', 'url' => 'its-assets', 'icon' => '💻', 'active' => $on('its-assets')],
-        ['label' => 'Training', 'url' => 'its-training', 'icon' => '🎓', 'active' => $on('its-training')],
+        ['label' => 'Clients', 'url' => 'its-clients', 'icon' => 'building', 'active' => $on('its-clients')],
+        ['label' => 'Assets', 'url' => 'its-assets', 'icon' => 'laptop', 'active' => $on('its-assets')],
+        ['label' => 'Training', 'url' => 'its-training', 'icon' => 'mortarboard', 'active' => $on('its-training')],
     ]],
     ['label' => 'Operations', 'items' => [
-        ['label' => 'Network', 'url' => 'its-network', 'icon' => '🛰', 'active' => $on('its-network')],
-        ['label' => 'Forms', 'url' => 'its-forms', 'icon' => '📝', 'active' => $on('its-forms', 'its-form')],
+        ['label' => 'Network', 'url' => 'its-network', 'icon' => 'diagram-3', 'active' => $on('its-network')],
+        ['label' => 'Forms', 'url' => 'its-forms', 'icon' => 'ui-checks', 'active' => $on('its-forms', 'its-form')],
     ]],
 ];
 if ($isAdmin) {
     $navGroups[] = ['label' => 'Insights', 'items' => [
-        ['label' => 'Reports', 'url' => 'its-report-builder', 'icon' => '📊', 'active' => $on('its-report-builder')],
-        ['label' => 'Billing', 'url' => 'its-billing', 'icon' => '💳', 'active' => $on('its-billing')],
+        ['label' => 'Reports', 'url' => 'its-report-builder', 'icon' => 'bar-chart', 'active' => $on('its-report-builder')],
+        ['label' => 'Billing', 'url' => 'its-billing', 'icon' => 'credit-card', 'active' => $on('its-billing')],
     ]];
 }
-$systemItems = [['label' => 'Website', 'url' => 'its-site', 'icon' => '🌐', 'active' => $on('its-site')], ['label' => 'Import', 'url' => 'its-import', 'icon' => '📥', 'active' => $on('its-import')]];
+$systemItems = [['label' => 'Website', 'url' => 'its-site', 'icon' => 'globe2', 'active' => $on('its-site')], ['label' => 'Import', 'url' => 'its-import', 'icon' => 'download', 'active' => $on('its-import')]];
 if ($isAdmin) array_push($systemItems,
-    ['label' => 'Admin', 'url' => 'its-admin', 'icon' => '⚙️', 'active' => $on('its-admin')],
-    ['label' => 'Updates', 'url' => 'its-updates', 'icon' => '⬆️', 'active' => $on('its-updates')],
-    ['label' => 'Modules', 'url' => 'its-modules', 'icon' => '🧩', 'active' => $on('its-modules')],
-    ['label' => 'Health', 'url' => 'its-health', 'icon' => '🩺', 'active' => $on('its-health')]);
+    ['label' => 'Admin', 'url' => 'its-admin', 'icon' => 'sliders', 'active' => $on('its-admin')],
+    ['label' => 'Updates', 'url' => 'its-updates', 'icon' => 'arrow-up-circle', 'active' => $on('its-updates')],
+    ['label' => 'Modules', 'url' => 'its-modules', 'icon' => 'puzzle', 'active' => $on('its-modules')],
+    ['label' => 'Health', 'url' => 'its-health', 'icon' => 'heart-pulse', 'active' => $on('its-health')]);
 $navGroups[] = ['label' => 'System', 'items' => $systemItems];
 $navGroups[] = ['label' => 'Help & account', 'items' => [
-    ['label' => 'Security', 'url' => 'its-security', 'icon' => '🔐', 'active' => $on('its-security')],
-    ['label' => 'Help', 'url' => 'its-help', 'icon' => '❓', 'active' => $on('its-help')],
-    ['label' => 'Features', 'url' => 'its-features', 'icon' => '✨', 'active' => $on('its-features')],
+    ['label' => 'Security', 'url' => 'its-security', 'icon' => 'shield-lock', 'active' => $on('its-security')],
+    ['label' => 'Help', 'url' => 'its-help', 'icon' => 'question-circle', 'active' => $on('its-help')],
+    ['label' => 'Features', 'url' => 'its-features', 'icon' => 'stars', 'active' => $on('its-features')],
 ]];
 if ($navRole === 'client') {
 $navGroups = [['label' => 'My Support', 'items' => [
-    ['label' => 'Dashboard', 'url' => 'its-portal', 'icon' => '🏠', 'active' => in_array($activeRoute, ['its-portal', 'its-portal-ticket'], true)],
-    ['label' => 'Report an Issue', 'url' => 'its-portal-new', 'icon' => '➕', 'active' => $activeRoute === 'its-portal-new'],
-    ['label' => 'My Equipment', 'url' => 'its-portal-assets', 'icon' => '💻', 'active' => $on('its-portal-assets')],
-    ['label' => 'Help articles', 'url' => 'its-portal-kb', 'icon' => '📚', 'active' => $activeRoute === 'its-portal-kb'],
+    ['label' => 'Dashboard', 'url' => 'its-portal', 'icon' => 'house', 'active' => in_array($activeRoute, ['its-portal', 'its-portal-ticket'], true)],
+    ['label' => 'Report an Issue', 'url' => 'its-portal-new', 'icon' => 'plus-circle', 'active' => $activeRoute === 'its-portal-new'],
+    ['label' => 'My Equipment', 'url' => 'its-portal-assets', 'icon' => 'laptop', 'active' => $on('its-portal-assets')],
+    ['label' => 'Help articles', 'url' => 'its-portal-kb', 'icon' => 'journal-text', 'active' => $activeRoute === 'its-portal-kb'],
 ]]];
 }
 $navMod = ['its-dashboard' => 'dashboard', 'its-tickets' => 'tickets', 'its-board' => 'board', 'its-quotes' => 'quotes', 'its-clients' => 'clients', 'its-assets' => 'assets', 'its-network' => 'network', 'its-forms' => 'forms', 'its-report-builder' => 'reports', 'its-kb' => 'kb', 'its-import' => 'import', 'its-training' => 'training', 'its-site' => 'website'];
@@ -259,27 +270,27 @@ if ($navRole !== 'client') {
     } catch (\Throwable $e) { $alerts = 0; }
 }
 ?>
-<nav aria-label="Main navigation">
+<nav aria-label="Main navigation" :class="nav && 'nav-open'" @click.outside="nav = false">
 <?php foreach ($navGroups as $group) { $groupActive = count(array_filter($group['items'], static fn(array $item): bool => $item['active'])) > 0; ?>
 <details class="nav-group<?= $groupActive ? ' is-active' : '' ?>"><summary data-i18n="<?= esc($group['label']) ?>"><?= esc($group['label']) ?></summary><div class="nav-menu">
-<?php foreach ($group['items'] as $item) { $cnt = (int) ($navCounts[$item['url']] ?? 0); ?><a href="<?= base_url($item['url']) ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?>><span class="nav-ico" aria-hidden="true"><?= $item['icon'] ?? '' ?></span><span data-i18n="<?= esc($item['label']) ?>"><?= esc($item['label']) ?></span><?php if ($cnt) { ?><span class="nav-count" title="Assigned to you and open"><?= $cnt > 99 ? '99+' : $cnt ?></span><?php } ?></a><?php } ?>
+<?php foreach ($group['items'] as $item) { $cnt = (int) ($navCounts[$item['url']] ?? 0); ?><a href="<?= base_url($item['url']) ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?>><i class="bi bi-<?= esc($item['icon'] ?? 'circle') ?> nav-ico" aria-hidden="true"></i><span data-i18n="<?= esc($item['label']) ?>"><?= esc($item['label']) ?></span><?php if ($cnt) { ?><span class="nav-count" title="Assigned to you and open"><?= $cnt > 99 ? '99+' : $cnt ?></span><?php } ?></a><?php } ?>
 </div></details>
 <?php } ?>
-<?php if ($navRole !== 'client') { ?><button type="button" id="cmd-open" class="nav-extra" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)">🔍 <span data-i18n="Search">Search</span></button>
-<a class="nav-extra" href="<?= base_url('its-tickets') ?>" aria-label="<?= $alerts ?> alerts" title="Overdue tickets and devices down">🔔<?php if ($alerts) { ?> <span class="badge red"><?= $alerts ?></span><?php } ?></a><?php } ?>
+<?php if ($navRole !== 'client') { ?><button type="button" id="cmd-open" class="nav-extra" aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)"><i class="bi bi-search" aria-hidden="true"></i> <span data-i18n="Search">Search</span></button>
+<a class="nav-extra" href="<?= base_url('its-tickets') ?>" aria-label="<?= $alerts ?> alerts" title="Overdue tickets and devices down"><i class="bi bi-bell" aria-hidden="true"></i><?php if ($alerts) { ?> <span class="badge red"><?= $alerts ?></span><?php } ?></a><?php } ?>
 <button type="button" class="mode-toggle nav-extra" data-mode-toggle aria-pressed="false" aria-label="Switch to dark mode" data-i18n="Dark mode">Dark mode</button>
 <form class="nav-extra" method="post" action="<?= base_url('its-logout') ?>"><?= csrf_field() ?><button data-i18n="Logout">Logout</button></form>
 </nav>
 <?php
 $tabs = $navRole === 'client'
-    ? [['its-portal', '🏠', 'Home'], ['its-portal-new', '➕', 'Report'], ['its-portal-assets', '💻', 'Equipment'], ['its-portal-kb', '📚', 'Help']]
-    : array_values(array_filter([['its-dashboard', '🏠', 'Home'], ['its-tickets', '🎫', 'Tickets'], ['its-board', '🗂', 'Board'], ['its-assets', '💻', 'Assets'], ['its-clients', '🏢', 'Clients']], static fn($t) => $navCan($t[0])));
+    ? [['its-portal', 'house', 'Home'], ['its-portal-new', 'plus-circle', 'Report'], ['its-portal-assets', 'laptop', 'Equipment'], ['its-portal-kb', 'journal-text', 'Help']]
+    : array_values(array_filter([['its-dashboard', 'house', 'Home'], ['its-tickets', 'ticket-detailed', 'Tickets'], ['its-board', 'kanban', 'Board'], ['its-assets', 'laptop', 'Assets'], ['its-clients', 'building', 'Clients']], static fn($t) => $navCan($t[0])));
 $tabs = array_slice($tabs, 0, $navRole === 'client' ? 4 : 4);
 ?>
-<div class="tabbar" role="navigation" aria-label="Quick navigation"><?php foreach ($tabs as [$tu, $ti, $tl]) { ?><a href="<?= base_url($tu) ?>" <?= ($activeRoute === $tu || str_starts_with($activeRoute, $tu . '-')) && !($tu === 'its-portal' && $activeRoute === 'its-portal-new') ? 'aria-current="page"' : '' ?>><span aria-hidden="true"><?= $ti ?></span><?= esc($tl) ?></a><?php } ?><?php if ($navRole !== 'client') { ?><button type="button" data-cmd-open><span aria-hidden="true">🔍</span>Search</button><?php } ?></div>
+<div class="tabbar" role="navigation" aria-label="Quick navigation"><?php foreach ($tabs as [$tu, $ti, $tl]) { ?><a href="<?= base_url($tu) ?>" <?= ($activeRoute === $tu || str_starts_with($activeRoute, $tu . '-')) && !($tu === 'its-portal' && $activeRoute === 'its-portal-new') ? 'aria-current="page"' : '' ?>><i class="bi bi-<?= esc($ti) ?>" aria-hidden="true"></i><?= esc($tl) ?></a><?php } ?><?php if ($navRole !== 'client') { ?><button type="button" data-cmd-open><i class="bi bi-search" aria-hidden="true"></i>Search</button><button type="button" @click="nav = !nav" aria-label="Menu"><i class="bi bi-grid" aria-hidden="true"></i>Menu</button><?php } ?></div>
 <div class="appbar">
-<?php if ($navRole !== 'client') { ?><button type="button" class="ab-search" data-cmd-open aria-label="Search (Ctrl+K)"><span aria-hidden="true">🔍</span> <span data-i18n="Search">Search</span> <kbd>Ctrl K</kbd></button><?php } else { ?><span></span><?php } ?>
-<?php if ($navRole !== 'client') { ?><details class="ab-menu ab-bell"><summary aria-label="<?= $alerts ?> notifications"><span aria-hidden="true">🔔</span><?php if ($alerts) { ?><span class="ab-dot"><?= $alerts > 99 ? '99+' : $alerts ?></span><?php } ?></summary>
+<?php if ($navRole !== 'client') { ?><button type="button" class="ab-search" data-cmd-open aria-label="Search (Ctrl+K)"><i class="bi bi-search" aria-hidden="true"></i> <span data-i18n="Search">Search</span> <kbd>Ctrl K</kbd></button><?php } else { ?><span></span><?php } ?>
+<?php if ($navRole !== 'client') { ?><details class="ab-menu ab-bell"><summary aria-label="<?= $alerts ?> notifications"><i class="bi bi-bell" aria-hidden="true"></i><?php if ($alerts) { ?><span class="ab-dot"><?= $alerts > 99 ? '99+' : $alerts ?></span><?php } ?></summary>
 <div class="ab-panel" role="region" aria-label="Notifications"><strong>Notifications</strong>
 <?php foreach ($alertTickets as $at) { ?><a href="<?= base_url('its-tickets-view/' . $at['id']) ?>"><span class="badge red">Overdue</span> <?= esc($at['ticket_number']) ?> <?= esc(mb_strimwidth((string) $at['subject'], 0, 38, '…')) ?><small>due <?= esc($at['due_at']) ?></small></a><?php } ?>
 <?php foreach ($alertDevices as $ad) { ?><a href="<?= base_url('its-network') ?>"><span class="badge red">Offline</span> <?= esc($ad['name']) ?><small><?= esc($ad['ip_address']) ?></small></a><?php } ?>
@@ -292,5 +303,4 @@ $tabs = array_slice($tabs, 0, $navRole === 'client' ? 4 : 4);
 </div>
 <?php } ?>
 <main id="main" tabindex="-1">
-<?php if (session('ok')) { ?><div class="flash flash-ok" role="status"><?= esc(session('ok')) ?></div><?php } ?>
-<?php if (session('err')) { ?><div class="flash flash-err" role="alert"><?= esc(session('err')) ?></div><?php } ?>
+<?= view('partials/flash') ?>
