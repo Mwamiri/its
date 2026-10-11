@@ -10,6 +10,31 @@ namespace Config;
 class ReleaseNotes
 {
     public array $releases = [
+        '4.0.1' => [
+            'date'  => '2026-10-11',
+            'title' => 'Public support request form, footer customisation and Bootstrap Icons',
+            'items' => [
+                ['feature', 'Public IT support request form at /support-request: visitors can report an issue without a login. Fields include name, contact, company, device description, issue and urgency. Each submission gets a reference number (SR-XXXXX) and triggers an email notification to the site address.'],
+                ['feature', 'Spam protection on the public support form: honeypot field, 3-second minimum fill time and a per-IP rate limit of 5 submissions per hour, matching the contact form.'],
+                ['feature', 'New "support" page block type (Website → Pages): add an IT support request form to any CMS page.'],
+                ['feature', 'Footer customisation: four new toggles in Website → Design → Footer — show/hide the "Get a quote" button, show/hide the WhatsApp button, show/hide the contact section, and a custom Quick Links column (one "Label|URL" per line).'],
+                ['feature', 'Bootstrap Icons (bi bi-*) added to the dashboard and navigation, replacing emoji icons with consistent scalable vector icons.'],
+                ['feature', 'Alpine.js v3 added to the dashboard for smooth mobile sidebar open/close with keyboard (Escape) and outside-click dismissal.'],
+                ['feature', 'Web development portfolio: four client website projects added to the Projects section (CDE Kenya, HHC JK Kenya Region, KAEAM, St Brigitta\'s Hospital).'],
+                ['change', 'Website menu and footer design improvements: animated active-page underline, smooth mobile menu animation, structured footer grid with CTA buttons and improved copyright bar.'],
+            ],
+        ],
+        '4.0.0' => [
+            'date'  => '2026-10-11',
+            'title' => 'Web Development and App Development as dedicated services; CHURCHZ layout',
+            'items' => [
+                ['feature', 'Web Development and App Development added as dedicated service categories with full descriptions and bullet points.'],
+                ['feature', 'Dashboard layout ported from CHURCHZ: sidebar navigation, top bar with search and notifications, mobile tab bar and mobile hamburger sidebar.'],
+                ['change', 'Navigation icons upgraded from emoji to Bootstrap Icons for a consistent, scalable interface.'],
+                ['change', 'Flash message system upgraded to a toast stack (auto-dismiss after 5 seconds for success, persistent for errors).'],
+                ['feature', 'Page header partial (partials/page_header.php) with breadcrumbs, title, subtitle, actions and optional hero banner mode.'],
+            ],
+        ],
         '3.5.0' => [
             'date'  => '2026-10-08',
             'title' => 'Company website as the front page, page builder, email sign-in codes and module manager',
