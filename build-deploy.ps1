@@ -34,7 +34,7 @@ if ($Version) {
     if ($previousVersion -match '^(\d+\.\d+\.)(\d+)$') {
         $Version = $Matches[1] + ([int]$Matches[2] + 1)
     } else {
-        throw "Cannot work out the next version after $previousVersion — give it with -Version."
+        throw "Cannot work out the next version after $previousVersion - give it with -Version."
     }
 }
 [System.IO.File]::WriteAllText("$root\VERSION", "$Version`n", $utf8)
@@ -61,7 +61,7 @@ if ($SkipTests) {
     Pop-Location
     if ($testExit -ne 0) {
         [System.IO.File]::WriteAllText("$root\VERSION", "$previousVersion`n", $utf8)
-        throw "Tests failed — nothing was packaged (VERSION left at $previousVersion). Fix them or use -SkipTests."
+        throw "Tests failed - nothing was packaged (VERSION left at $previousVersion). Fix them or use -SkipTests."
     }
 } else {
     Write-Host '[0/5] PHPUnit not installed (composer install) — tests skipped' -ForegroundColor Yellow
@@ -155,7 +155,7 @@ Deploy a NEW site:
   1. Extract itsupportz_install_*.zip on the server.
   2. Point the domain's Document Root to the public/ folder.
   3. Create a MySQL database and fill in .env (copy env to .env, edit).
-  4. Open the site — the installer runs once, then locks itself.
+  4. Open the site - the installer runs once, then locks itself.
 
 UPDATE an existing site:
   System > Updates > upload itsupportz_update_*.zip > Install update.
