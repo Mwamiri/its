@@ -41,11 +41,12 @@ if ($Version) {
 Write-Host "Building ITSupportz $Version" -ForegroundColor Cyan
 
 function Find-Php {
-    $cmd = Get-Command php -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
+    # Prefer WAMP PHP (has mysqli for tests); fall back to PATH; last resort: any PHP in PATH
     $wamp = Get-ChildItem 'C:\wamp*\bin\php\php8*\php.exe' -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
     if ($wamp) { return $wamp.FullName }
-    throw 'PHP not found. Add WAMP PHP to PATH.'
+    $cmd = Get-Command php -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    throw 'PHP not found. Install WAMP or add PHP 8.2+ to PATH.'
 }
 $php = Find-Php
 

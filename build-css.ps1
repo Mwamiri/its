@@ -7,10 +7,11 @@ $root = $PSScriptRoot
 $cli  = Join-Path $root 'tools\tailwindcss.exe'
 
 if (-not (Test-Path $cli)) {
-    Write-Host 'Downloading Tailwind CSS standalone CLI...' -ForegroundColor Cyan
+    # Pin to v3 — itsupportz uses the v3 config format (prefix, @tailwind directives, tailwind.config.js)
+    Write-Host 'Downloading Tailwind CSS v3 standalone CLI...' -ForegroundColor Cyan
     New-Item -ItemType Directory -Force -Path (Split-Path $cli) | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest 'https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-windows-x64.exe' -OutFile $cli
+    Invoke-WebRequest 'https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-windows-x64.exe' -OutFile $cli
 }
 
 $twArgs = @('-c', "$root\tailwind.config.js", '-i', "$root\assets\tailwind.css", '-o', "$root\public\assets\tailwind.css")
