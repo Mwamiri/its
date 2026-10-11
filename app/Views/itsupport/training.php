@@ -1,7 +1,7 @@
 <?= view('itsupport/_header') ?>
 <?php $e = fn($x) => esc((string) $x); ?>
 <?php if (!$cur) { ?>
-<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mb-4"><h2 class="tw-m-0 tw-mr-auto tw-text-2xl tw-font-bold">Training <span class="tw-text-muted tw-text-base">(<?= count($sessions) ?>)</span></h2></div>
+<div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:mb-4"><h2 class="tw:m-0 tw:mr-auto tw:text-2xl tw:font-bold">Training <span class="tw:text-muted tw:text-base">(<?= count($sessions) ?>)</span></h2></div>
 <div class="grid grid-2">
 <div class="card tbl"><table><tr><th>Date</th><th>Session</th><th>Client</th><th>Hours</th><th>Present</th><th></th></tr>
 <?php foreach ($sessions as $s) { ?><tr><td><?= $e($s['session_date']) ?></td><td><?= $e($s['title']) ?></td><td><?= $e($s['client_name']) ?></td><td><?= $e($s['hours']) ?><?= $s['counts_hours'] ? '' : ' <span class="badge">free</span>' ?></td><td><?= (int) $s['present'] ?></td><td><a class="button secondary" href="<?= base_url('its-training-view/' . $s['id']) ?>">Attendance</a></td></tr><?php } ?>
@@ -20,7 +20,7 @@
 <button type="submit">Create session</button></form></div>
 </div>
 <?php } else { $link = base_url('its-attend/' . $cur['sign_token']); ?>
-<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mb-4"><h2 class="tw-m-0 tw-mr-auto tw-text-2xl tw-font-bold"><?= $e($cur['title']) ?></h2><a class="button secondary" href="<?= base_url('its-training') ?>">All sessions</a><a class="button secondary" href="<?= base_url('its-training-csv/' . $cur['id']) ?>">Export CSV</a><button class="secondary" onclick="window.print()" type="button">Print sheet</button></div>
+<div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:mb-4"><h2 class="tw:m-0 tw:mr-auto tw:text-2xl tw:font-bold"><?= $e($cur['title']) ?></h2><a class="button secondary" href="<?= base_url('its-training') ?>">All sessions</a><a class="button secondary" href="<?= base_url('its-training-csv/' . $cur['id']) ?>">Export CSV</a><button class="secondary" onclick="window.print()" type="button">Print sheet</button></div>
 <p><?= $e($cur['client_name']) ?> · <?= $e($cur['session_date']) ?> <?= $e(substr((string) $cur['start_time'], 0, 5)) ?> · <?= $e($cur['hours']) ?> h<?= $cur['location'] ? ' · ' . $e($cur['location']) : '' ?></p>
 <div class="grid grid-2">
 <div class="card"><h3>Attendance</h3>

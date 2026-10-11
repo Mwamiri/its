@@ -1,5 +1,5 @@
 <?= view('itsupport/_header') ?>
-<div class="page-head"><h2 class="tw-m-0 tw-text-2xl tw-font-bold">Security</h2><p class="muted">Protect your account and set organisation policies.</p></div>
+<div class="page-head"><h2 class="tw:m-0 tw:text-2xl tw:font-bold">Security</h2><p class="muted">Protect your account and set organisation policies.</p></div>
 <?php if (!empty($codes)) { ?><div class="card" role="alert"><h3>Recovery codes</h3><p>Store these somewhere safe. Each works once if you lose your phone.</p><p style="font-family:monospace;columns:2;max-width:320px"><?php foreach ($codes as $c) { ?><?= esc($c) ?><br><?php } ?></p></div><?php } ?>
 <div class="grid grid-2">
 <div class="card"><h3>Two-factor authentication</h3>

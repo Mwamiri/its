@@ -1,17 +1,17 @@
 <?= view('itsupport/_header') ?>
 <div class="section-heading"><div><p class="eyebrow">WORKFLOW</p><h2>Ticket board</h2></div><p class="muted">Drag a card to another column to change its status. Keyboard: focus a card and use the status menu.</p></div>
 <div id="board-msg" class="muted" role="status" aria-live="polite"></div>
-<div class="tw-flex tw-gap-3 tw-overflow-x-auto tw-pb-4" id="board" data-url="<?= base_url('its-board-move') ?>" data-token-name="<?= esc(csrf_token()) ?>" data-token="<?= esc(csrf_hash()) ?>">
+<div class="tw:flex tw:gap-3 tw:overflow-x-auto tw:pb-4" id="board" data-url="<?= base_url('its-board-move') ?>" data-token-name="<?= esc(csrf_token()) ?>" data-token="<?= esc(csrf_hash()) ?>">
 <?php foreach ($statuses as $key => $label) { ?>
-<section class="tw-flex tw-w-72 tw-shrink-0 tw-flex-col tw-rounded-2xl tw-border tw-border-line tw-bg-canvas tw-p-2" aria-label="<?= esc($label) ?>">
-<h3 class="tw-m-2 tw-flex tw-items-center tw-justify-between tw-text-sm"><?= esc($label) ?> <span class="badge gray" data-count><?= count($cols[$key]) ?></span></h3>
-<div class="tw-flex tw-min-h-24 tw-flex-1 tw-flex-col tw-gap-2 tw-rounded-xl tw-p-1" data-col="<?= esc($key) ?>">
+<section class="tw:flex tw:w-72 tw:shrink-0 tw:flex-col tw:rounded-2xl tw:border tw:border-line tw:bg-canvas tw:p-2" aria-label="<?= esc($label) ?>">
+<h3 class="tw:m-2 tw:flex tw:items-center tw:justify-between tw:text-sm"><?= esc($label) ?> <span class="badge gray" data-count><?= count($cols[$key]) ?></span></h3>
+<div class="tw:flex tw:min-h-24 tw:flex-1 tw:flex-col tw:gap-2 tw:rounded-xl tw:p-1" data-col="<?= esc($key) ?>">
 <?php foreach ($cols[$key] as $t) { ?>
-<article draggable="true" data-id="<?= (int) $t['id'] ?>" class="tw-cursor-grab tw-rounded-xl tw-border tw-border-line tw-bg-paper tw-p-3 tw-shadow-sm">
-<a class="tw-text-sm tw-font-bold tw-text-ink" href="<?= base_url('its-tickets-view/' . $t['id']) ?>"><?= esc($t['ticket_number']) ?></a>
-<p class="tw-m-0 tw-text-sm"><?= esc($t['subject']) ?></p>
-<p class="tw-m-0 tw-mt-1 tw-flex tw-items-center tw-justify-between tw-text-xs tw-text-muted"><span><?= esc($t['client_name']) ?></span><span class="badge <?= in_array($t['priority'], ['high', 'urgent'], true) ? 'orange' : 'gray' ?>"><?= esc($t['priority']) ?></span></p>
-<select aria-label="Move <?= esc($t['ticket_number']) ?> to" class="tw-mt-2 tw-text-xs" data-move><?php foreach ($statuses as $k => $l) { ?><option value="<?= esc($k) ?>" <?= $k === $key ? 'selected' : '' ?>><?= esc($l) ?></option><?php } ?></select>
+<article draggable="true" data-id="<?= (int) $t['id'] ?>" class="tw:cursor-grab tw:rounded-xl tw:border tw:border-line tw:bg-paper tw:p-3 tw:shadow-sm">
+<a class="tw:text-sm tw:font-bold tw:text-ink" href="<?= base_url('its-tickets-view/' . $t['id']) ?>"><?= esc($t['ticket_number']) ?></a>
+<p class="tw:m-0 tw:text-sm"><?= esc($t['subject']) ?></p>
+<p class="tw:m-0 tw:mt-1 tw:flex tw:items-center tw:justify-between tw:text-xs tw:text-muted"><span><?= esc($t['client_name']) ?></span><span class="badge <?= in_array($t['priority'], ['high', 'urgent'], true) ? 'orange' : 'gray' ?>"><?= esc($t['priority']) ?></span></p>
+<select aria-label="Move <?= esc($t['ticket_number']) ?> to" class="tw:mt-2 tw:text-xs" data-move><?php foreach ($statuses as $k => $l) { ?><option value="<?= esc($k) ?>" <?= $k === $key ? 'selected' : '' ?>><?= esc($l) ?></option><?php } ?></select>
 </article>
 <?php } ?>
 </div></section>

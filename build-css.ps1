@@ -1,20 +1,22 @@
-# Builds public/assets/tailwind.css from assets/tailwind.css with the Tailwind standalone CLI (no Node.js needed).
+# Builds public/assets/tailwind.css from assets/tailwind.css using Tailwind CSS v4.
 #   .\build-css.ps1            one-off minified build
 #   .\build-css.ps1 -Watch     rebuild automatically while editing views
+#
+# Requires Node.js + npm. Run `npm install` once to install Tailwind CSS v4.
 param([switch]$Watch)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$cli  = Join-Path $root 'tools\tailwindcss.exe'
+$cli  = Join-Path $root 'node_modules\.bin\tailwindcss.cmd'
 
 if (-not (Test-Path $cli)) {
-    # Pin to v3 — itsupportz uses tw-* dash prefix (v3 syntax); v4 uses colon prefix (tw:flex) which would require renaming all view classes
-    Write-Host 'Downloading Tailwind CSS v3 standalone CLI...' -ForegroundColor Cyan
-    New-Item -ItemType Directory -Force -Path (Split-Path $cli) | Out-Null
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest 'https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-windows-x64.exe' -OutFile $cli
+    Write-Host 'Installing Tailwind CSS v4 + CLI (npm install)...' -ForegroundColor Cyan
+    Push-Location $root
+    npm install
+    Pop-Location
 }
+if (-not (Test-Path $cli)) { throw 'Tailwind CSS CLI not found after npm install. Run: npm install' }
 
-$twArgs = @('-c', "$root\tailwind.config.js", '-i', "$root\assets\tailwind.css", '-o', "$root\public\assets\tailwind.css")
+$twArgs = @('-i', "$root\assets\tailwind.css", '-o', "$root\public\assets\tailwind.css")
 if ($Watch) { $twArgs += '--watch' } else { $twArgs += '--minify' }
 Push-Location $root
 try { & $cli @twArgs } finally { Pop-Location }

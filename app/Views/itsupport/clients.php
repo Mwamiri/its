@@ -1,8 +1,8 @@
 <?= view('itsupport/_header') ?>
 <?php $ev = static fn(string $k) => old($k) ?? ($edit[$k] ?? ''); ?>
-<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mb-4">
-<h2 class="tw-m-0 tw-mr-auto tw-text-2xl tw-font-bold">Clients <span class="tw-text-muted tw-text-base">(<?= count($clients) ?>)</span></h2>
-<input id="row-filter" type="search" placeholder="Filter clients" aria-label="Filter clients" class="tw-w-56">
+<div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:mb-4">
+<h2 class="tw:m-0 tw:mr-auto tw:text-2xl tw:font-bold">Clients <span class="tw:text-muted tw:text-base">(<?= count($clients) ?>)</span></h2>
+<input id="row-filter" type="search" placeholder="Filter clients" aria-label="Filter clients" class="tw:w-56">
 </div>
 <div class="grid grid-2">
 <div class="card tbl"><table id="filter-table"><tr><th>Name</th><th>Contact</th><?php foreach ($listFields as $lf) { ?><th><?= esc($lf['label']) ?></th><?php } ?><th>Assets</th><th>Open</th><th></th></tr>

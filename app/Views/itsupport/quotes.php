@@ -1,7 +1,7 @@
 <?= view('itsupport/_header') ?>
-<div class="tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-mb-4">
-<h2 class="tw-m-0 tw-mr-auto tw-text-2xl tw-font-bold">Quotes <span class="tw-text-muted tw-text-base">(<?= count($quotes) ?>)</span></h2>
-<input id="row-filter" type="search" placeholder="Filter quotes" aria-label="Filter quotes" class="tw-w-56">
+<div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:mb-4">
+<h2 class="tw:m-0 tw:mr-auto tw:text-2xl tw:font-bold">Quotes <span class="tw:text-muted tw:text-base">(<?= count($quotes) ?>)</span></h2>
+<input id="row-filter" type="search" placeholder="Filter quotes" aria-label="Filter quotes" class="tw:w-56">
 </div>
 <div class="grid grid-2">
 <div class="card tbl"><table id="filter-table"><tr><th>#</th><th>Client</th><th>Total</th><th>Status</th><th></th></tr>

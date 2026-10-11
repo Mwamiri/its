@@ -2,16 +2,16 @@
 <?php
 $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations' => 'API & Webhooks', 'settings' => 'Branding & Settings', 'fields' => 'Custom fields', 'templates' => 'Templates', 'reports' => 'Reports', 'mail' => 'Mail', 'maillog' => 'Mail Log', 'maintenance' => 'Maintenance', 'audit' => 'Audit', 'changes' => 'Changes'];
 ?>
-<div class="tw-mb-4 tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-rounded-2xl tw-border tw-border-line tw-bg-paper tw-p-2 tw-shadow-sm">
-<div role="tablist" aria-label="Admin sections" class="tw-flex tw-flex-1 tw-gap-1 tw-overflow-x-auto">
+<div class="tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-2xl tw:border tw:border-line tw:bg-paper tw:p-2 tw:shadow-sm">
+<div role="tablist" aria-label="Admin sections" class="tw:flex tw:flex-1 tw:gap-1 tw:overflow-x-auto">
 <?php foreach ($adminTabs as $key => $label) { $on = $tab === $key; ?>
-<a role="tab" aria-selected="<?= $on ? 'true' : 'false' ?>" href="<?= base_url('its-admin?tab=' . $key) ?>" class="tw-whitespace-nowrap tw-rounded-xl tw-px-3.5 tw-py-2 tw-text-sm tw-font-semibold tw-no-underline tw-transition <?= $on ? 'tw-bg-brand tw-text-white tw-shadow' : 'tw-text-muted hover:tw-bg-brand-soft hover:tw-text-ink' ?>"><?= esc($label) ?></a>
+<a role="tab" aria-selected="<?= $on ? 'true' : 'false' ?>" href="<?= base_url('its-admin?tab=' . $key) ?>" class="tw:whitespace-nowrap tw:rounded-xl tw:px-3.5 tw:py-2 tw:text-sm tw:font-semibold tw:no-underline tw:transition <?= $on ? 'tw:bg-brand tw:text-white tw:shadow' : 'tw:text-muted tw:hover:bg-brand-soft tw:hover:text-ink' ?>"><?= esc($label) ?></a>
 <?php } ?>
 </div>
-<div class="tw-flex tw-gap-1">
-<a href="<?= base_url('its-updates') ?>" class="tw-rounded-xl tw-border tw-border-line tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-text-ink tw-no-underline hover:tw-bg-brand-soft">Updates</a>
-<a href="<?= base_url('its-security') ?>" class="tw-rounded-xl tw-border tw-border-line tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-text-ink tw-no-underline hover:tw-bg-brand-soft">Security</a>
-<a href="<?= base_url('its-admin-backup') ?>" class="tw-rounded-xl tw-border tw-border-line tw-px-3 tw-py-2 tw-text-sm tw-font-semibold tw-text-ink tw-no-underline hover:tw-bg-brand-soft">Backup</a>
+<div class="tw:flex tw:gap-1">
+<a href="<?= base_url('its-updates') ?>" class="tw:rounded-xl tw:border tw:border-line tw:px-3 tw:py-2 tw:text-sm tw:font-semibold tw:text-ink tw:no-underline tw:hover:bg-brand-soft">Updates</a>
+<a href="<?= base_url('its-security') ?>" class="tw:rounded-xl tw:border tw:border-line tw:px-3 tw:py-2 tw:text-sm tw:font-semibold tw:text-ink tw:no-underline tw:hover:bg-brand-soft">Security</a>
+<a href="<?= base_url('its-admin-backup') ?>" class="tw:rounded-xl tw:border tw:border-line tw:px-3 tw:py-2 tw:text-sm tw:font-semibold tw:text-ink tw:no-underline tw:hover:bg-brand-soft">Backup</a>
 </div>
 </div><?php if ($tab === 'users') { ?>
 <div class="card"><h3>Add User</h3><form method="post" action="<?= base_url('its-admin-users') ?>"><?= csrf_field() ?>

@@ -1,5 +1,5 @@
 <?= view('itsupport/_header') ?>
-<h2 class="tw-text-2xl tw-font-bold">Import from Excel or CSV</h2>
+<h2 class="tw:text-2xl tw:font-bold">Import from Excel or CSV</h2>
 <?php if ($report) { ?><div class="card"><strong><?= esc($report['type']) ?>:</strong> <?= (int) $report['ok'] ?> imported, <?= (int) $report['skip'] ?> skipped as duplicates, <?= count($report['errs']) + $report['more'] ?> rejected.
 <?php if ($report['errs']) { ?><ul><?php foreach ($report['errs'] as $e) { ?><li><?= esc($e) ?></li><?php } ?><?php if ($report['more']) { ?><li>and <?= (int) $report['more'] ?> more</li><?php } ?></ul><?php } ?></div><?php } ?>
 <div class="grid grid-2">

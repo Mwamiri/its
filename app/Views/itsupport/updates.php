@@ -1,7 +1,7 @@
 <?= view('itsupport/_header') ?>
-<div class="tw-grid tw-grid-cols-2 tw-gap-3 md:tw-grid-cols-4 tw-mb-4">
+<div class="tw:grid tw:grid-cols-2 tw:gap-3 tw:md:grid-cols-4 tw:mb-4">
 <?php foreach ([['App', $version], ['CodeIgniter', $frameworkVersion], ['PHP', $system['php']], ['Database', $system['rows']['Database']]] as [$k, $val]) { ?>
-<div class="tw-rounded-2xl tw-border tw-border-line tw-bg-paper tw-p-4 tw-shadow-sm"><p class="tw-m-0 tw-text-xs tw-font-bold tw-uppercase tw-tracking-wider tw-text-muted"><?= esc($k) ?></p><p class="tw-m-0 tw-mt-1 tw-text-lg tw-font-bold tw-text-ink tw-break-words"><?= esc($val) ?></p></div>
+<div class="tw:rounded-2xl tw:border tw:border-line tw:bg-paper tw:p-4 tw:shadow-sm"><p class="tw:m-0 tw:text-xs tw:font-bold tw:uppercase tw:tracking-wider tw:text-muted"><?= esc($k) ?></p><p class="tw:m-0 tw:mt-1 tw:text-lg tw:font-bold tw:text-ink tw:break-words"><?= esc($val) ?></p></div>
 <?php } ?>
 </div>
 <?php if (!empty($releaseNotes)) {
