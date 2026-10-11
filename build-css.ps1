@@ -7,7 +7,7 @@ $root = $PSScriptRoot
 $cli  = Join-Path $root 'tools\tailwindcss.exe'
 
 if (-not (Test-Path $cli)) {
-    # Pin to v3 — itsupportz uses the v3 config format (prefix, @tailwind directives, tailwind.config.js)
+    # Pin to v3 — itsupportz uses tw-* dash prefix (v3 syntax); v4 uses colon prefix (tw:flex) which would require renaming all view classes
     Write-Host 'Downloading Tailwind CSS v3 standalone CLI...' -ForegroundColor Cyan
     New-Item -ItemType Directory -Force -Path (Split-Path $cli) | Out-Null
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
