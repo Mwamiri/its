@@ -125,6 +125,35 @@ class ItsSite extends ItsBase
         return redirect()->to(base_url('its-site?tab=design'))->with('ok', 'Design saved. Open the website to see it.');
     }
 
+    public function saveMenu()
+    {
+        if ($r = $this->guard()) return $r;
+        $pages = (array) $this->request->getPost('pages');
+        foreach ($pages as $id => $data) {
+            $id = (int) $id;
+            if (!$id) continue;
+            $this->db->table('site_pages')->where('id', $id)->update([
+                'show_in_menu' => empty($data['show']) ? 0 : 1,
+                'menu_label'   => mb_substr(trim((string) ($data['label'] ?? '')), 0, 60) ?: null,
+                'menu_order'   => max(0, min(999, (int) ($data['order'] ?? 0))),
+            ]);
+        }
+        $labels = (array) $this->request->getPost('link_label');
+        $urls   = (array) $this->request->getPost('link_url');
+        $orders = (array) $this->request->getPost('link_order');
+        $custom = [];
+        foreach ($labels as $i => $label) {
+            $label = mb_substr(trim((string) $label), 0, 60);
+            $url   = mb_substr(trim((string) ($urls[$i] ?? '')), 0, 500);
+            if ($label !== '' && $url !== '') {
+                $custom[] = ['label' => $label, 'url' => $url, 'order' => max(0, min(999, (int) ($orders[$i] ?? 80)))];
+            }
+        }
+        SettingModel::put('site_menu_custom', json_encode($custom, JSON_UNESCAPED_UNICODE));
+        $this->audit('site_menu_saved', 'website');
+        return redirect()->to(base_url('its-site?tab=menu'))->with('ok', 'Menu saved.');
+    }
+
     public function deletePage($id)
     {
         if ($r = $this->guard()) return $r;

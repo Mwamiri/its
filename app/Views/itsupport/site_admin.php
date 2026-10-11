@@ -1,7 +1,7 @@
 <?= view('itsupport/_header') ?>
 <?php
 use App\Libraries\Site;
-$tabs = ['pages' => 'Pages (builder)', 'content' => 'Content', 'design' => 'Design', 'settings' => 'Settings & SEO', 'leads' => 'Leads' . ($newLeads ? " ($newLeads new)" : '')];
+$tabs = ['pages' => 'Pages (builder)', 'menu' => 'Menu', 'content' => 'Content', 'design' => 'Design', 'settings' => 'Settings & SEO', 'leads' => 'Leads' . ($newLeads ? " ($newLeads new)" : '')];
 $ep = $editPage ?: [];
 $ei = $editItem ?: [];
 $secSel = array_filter(explode(',', (string) ($ep['sections'] ?? 'cta')));
@@ -165,6 +165,51 @@ $pv = static fn(array $row, string $k, string $d = '') => (string) (old($k) ?? (
 <div class="card"><h3>Colours, logo &amp; contact details</h3><p class="muted">Brand colours, contact details and SEO defaults are on the <a href="<?= base_url('its-site?tab=settings') ?>">Settings &amp; SEO</a> tab; the logo comes from Admin → Branding &amp; Settings.</p>
 <div class="form-actions"><button class="btn">Save design</button><a class="button secondary" href="<?= base_url() ?>" target="_blank" rel="noopener">View website ↗</a></div></div>
 </div></form>
+
+<?php } elseif ($tab === 'menu') { ?>
+<div class="card">
+<h3>Menu builder</h3>
+<p class="muted">Set the order and visibility of pages in the main navigation. Add custom links (for example to external sites or page anchors) below the page list.</p>
+<form method="post" action="<?= base_url('its-site-menu') ?>"><?= csrf_field() ?>
+<h4 style="margin:16px 0 8px">Page items</h4>
+<div class="tbl"><table>
+<tr><th>Page</th><th>Menu label <span class="muted">(blank = page title)</span></th><th>Order</th><th>Show in menu</th></tr>
+<?php foreach ($pages as $pg) { ?>
+<tr>
+  <td><strong><?= esc($pg['title']) ?></strong><?= $pg['is_system'] ? ' <span class="badge gray">built-in</span>' : '' ?><br><a class="muted" style="font-size:12px" href="<?= esc(Site::url($pg['slug'])) ?>" target="_blank" rel="noopener">/<?= esc($pg['slug'] === 'home' ? '' : $pg['slug']) ?></a></td>
+  <td><input name="pages[<?= (int) $pg['id'] ?>][label]" value="<?= esc($pg['menu_label'] ?? '') ?>" placeholder="<?= esc($pg['title']) ?>" maxlength="60" style="width:160px"></td>
+  <td><input type="number" name="pages[<?= (int) $pg['id'] ?>][order]" value="<?= (int) $pg['menu_order'] ?>" min="0" max="999" style="width:64px"></td>
+  <td style="text-align:center"><label class="check-line" style="justify-content:center;margin:0"><input type="checkbox" name="pages[<?= (int) $pg['id'] ?>][show]" value="1" <?= $pg['show_in_menu'] ? 'checked' : '' ?>></label></td>
+</tr>
+<?php } ?>
+</table></div>
+<h4 style="margin:20px 0 4px">Custom links</h4>
+<p class="muted" style="margin:0 0 10px">Links to external sites, anchors or pages not listed above. Items are sorted together with pages by the order number.</p>
+<div id="mn-links">
+<?php $menuCustom = json_decode((string) \App\Models\SettingModel::get('site_menu_custom', ''), true) ?: []; ?>
+<?php foreach ($menuCustom as $cl) { ?>
+<div class="mn-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+  <input name="link_label[]" placeholder="Label" value="<?= esc($cl['label'] ?? '') ?>" maxlength="60" style="width:160px">
+  <input name="link_url[]" placeholder="https://…" value="<?= esc($cl['url'] ?? '') ?>" maxlength="500" style="flex:1;min-width:180px">
+  <input type="number" name="link_order[]" value="<?= (int) ($cl['order'] ?? 80) ?>" min="0" max="999" style="width:64px" title="Order number">
+  <button type="button" class="btn secondary" onclick="this.closest('.mn-row').remove()" title="Remove">✕</button>
+</div>
+<?php } ?>
+</div>
+<button type="button" id="mn-add" class="btn secondary" style="margin-top:4px">+ Add link</button>
+<div class="form-actions"><button class="btn">Save menu</button><a class="button secondary" href="<?= base_url() ?>" target="_blank" rel="noopener">View website ↗</a></div>
+</form>
+</div>
+<script>
+document.getElementById('mn-add').addEventListener('click', function() {
+  var r = document.createElement('div');
+  r.className = 'mn-row';
+  r.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap';
+  r.innerHTML = '<input name="link_label[]" placeholder="Label" maxlength="60" style="width:160px"><input name="link_url[]" placeholder="https://…" maxlength="500" style="flex:1;min-width:180px"><input type="number" name="link_order[]" value="80" min="0" max="999" style="width:64px" title="Order number"><button type="button" class="btn secondary" onclick="this.closest(\'.mn-row\').remove()" title="Remove">✕</button>';
+  document.getElementById('mn-links').appendChild(r);
+  r.querySelector('input').focus();
+});
+</script>
 
 <?php } elseif ($tab === 'content') { ?>
 <div class="view-tabs" role="navigation" aria-label="Content types"><?php foreach (Site::KINDS as $k => [$l]) { ?><a href="<?= base_url('its-site?tab=content&kind=' . $k) ?>" <?= $kind === $k ? 'aria-current="page"' : '' ?>><?= esc($l) ?> <span class="muted">(<?= (int) ($counts[$k] ?? 0) ?>)</span></a><?php } ?></div>

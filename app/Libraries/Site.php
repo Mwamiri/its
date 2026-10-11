@@ -311,7 +311,18 @@ class Site
 
     public static function menu(): array
     {
-        return \Config\Database::connect()->table('site_pages')->select('slug, title, menu_label')->where('published', 1)->where('show_in_menu', 1)->orderBy('menu_order')->orderBy('id')->get()->getResultArray();
+        $pages = \Config\Database::connect()->table('site_pages')
+            ->select('slug, title, menu_label, menu_order')->where('published', 1)->where('show_in_menu', 1)
+            ->orderBy('menu_order')->orderBy('id')->get()->getResultArray();
+        $custom = json_decode((string) SettingModel::get('site_menu_custom', ''), true);
+        if (!is_array($custom) || empty($custom)) return $pages;
+        foreach ($custom as $c) {
+            if (!empty($c['label']) && !empty($c['url'])) {
+                $pages[] = ['slug' => $c['url'], 'title' => $c['label'], 'menu_label' => $c['label'], 'menu_order' => (int) ($c['order'] ?? 80)];
+            }
+        }
+        usort($pages, fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
+        return $pages;
     }
 
     public static function items(string $kind, bool $featuredOnly = false): array
@@ -324,6 +335,7 @@ class Site
 
     public static function url(string $slug): string
     {
+        if (str_starts_with($slug, 'http://') || str_starts_with($slug, 'https://') || str_starts_with($slug, '/')) return $slug;
         return base_url($slug === 'home' ? '' : $slug);
     }
 

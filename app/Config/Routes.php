@@ -174,6 +174,7 @@ $routes->POST('its-site-lead/(:num)', 'ItsSite::lead/$1');
 $routes->POST('its-site-preview', 'ItsSite::preview');
 $routes->POST('its-site-upload', 'ItsSite::upload');
 $routes->POST('its-site-design', 'ItsSite::saveDesign');
+$routes->POST('its-site-menu', 'ItsSite::saveMenu');
 
 // Public website. The catch-all for CMS pages must stay LAST so it never shadows the routes above.
 $routes->GET('sitemap.xml', 'Website::sitemap');

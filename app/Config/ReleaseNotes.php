@@ -10,6 +10,15 @@ namespace Config;
 class ReleaseNotes
 {
     public array $releases = [
+        '4.0.2' => [
+            'date'  => '2026-10-11',
+            'title' => 'Menu builder and custom navigation links',
+            'items' => [
+                ['feature', 'Menu builder in Website → Menu: set the order and visibility of every page in the main navigation from one screen, and add custom links (to external sites, anchors or any URL) that appear alongside page items.'],
+                ['feature', 'Custom navigation links are stored and merged with page links at render time, sorted by the same order number as pages.'],
+                ['change', 'Site::url() now accepts absolute URLs and root-relative paths so custom links in the menu work without modification.'],
+            ],
+        ],
         '4.0.1' => [
             'date'  => '2026-10-11',
             'title' => 'Public support request form, footer customisation and Bootstrap Icons',
