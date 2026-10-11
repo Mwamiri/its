@@ -1,0 +1,26 @@
+# Static analysis: vendor/bin/phpstan analyse   (development only — not part of release packages)
+parameters:
+    level: 5
+    paths:
+        - app
+    excludePaths:
+        - app/Views
+        - app/ThirdParty
+    bootstrapFiles:
+        - tools/phpstan-bootstrap.php
+    tmpDir: writable/cache/phpstan
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # CodeIgniter's own config files compare ENVIRONMENT, which is a constant during analysis
+        -
+            identifiers: [identical.alwaysTrue, identical.alwaysFalse, notIdentical.alwaysTrue, booleanAnd.leftAlwaysTrue]
+            path: app/Config/*
+        # Kint (the debug toolbar's dumper) is not installed in production
+        -
+            identifier: class.notFound
+            path: app/Config/Kint.php
+        # Migrations get the database as ConnectionInterface; at run time it is always a BaseConnection
+        -
+            identifiers: [method.notFound, argument.type]
+            message: '#ConnectionInterface#'
+            path: app/Database/Migrations/*

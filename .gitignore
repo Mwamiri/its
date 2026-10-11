@@ -9,3 +9,7 @@
 Thumbs.db
 /public/uploads/*
 !/public/uploads/.htaccess
+/dist/*.zip
+/dist/manifest.json
+/tools/tailwindcss.exe
+/BUILD.txt
