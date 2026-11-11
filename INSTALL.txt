@@ -1,0 +1,29 @@
+ITSupportz fresh installation
+
+Use the install ZIP only for a new site and a new empty database. Back up
+any existing site and database before making changes.
+
+1. Extract the install ZIP into a private application folder. Set the
+   domain's document root to that folder's public subfolder in cPanel.
+2. Create an empty MySQL database and user in cPanel. Import
+   itsupport_schema.sql into that database using phpMyAdmin.
+3. Copy env to .env in the application folder. Set CI_ENVIRONMENT to
+   production, app.baseURL to the site's HTTPS URL ending in /, and the
+   database.default.* values for the database and user you created.
+4. Generate a random 64-character lowercase hexadecimal setup key using a
+   secure password manager. Add this line to .env, replacing the placeholder:
+   its.setupKey = your_64_character_random_hex_key
+   Keep the key private. Do not use a predictable or reused key.
+5. Ensure writable and public/uploads are writable by the web server.
+   Visit https://your-domain/its-setup and enter the setup key and first
+   administrator details. Setup runs the remaining migrations.
+6. Remove the its.setupKey line from .env immediately after setup. Generate
+   and set a separate encryption.key before using encrypted features. Keep
+   both the key and database backups private.
+
+If the server itself returns 404, check the domain's document root and
+whether public/index.php exists there. A ZIP cannot repair an incorrectly
+configured domain or web server.
+
+For existing installations use the update ZIP via System > Updates, not
+this install ZIP. Back up files and database before updating.

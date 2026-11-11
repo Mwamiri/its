@@ -1,6 +1,6 @@
 <?= view('itsupport/_header') ?>
 <?php
-$adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations' => 'API & Webhooks', 'settings' => 'Branding & Settings', 'fields' => 'Custom fields', 'templates' => 'Templates', 'reports' => 'Reports', 'mail' => 'Mail', 'maillog' => 'Mail Log', 'maintenance' => 'Maintenance', 'audit' => 'Audit', 'changes' => 'Changes'];
+$adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations' => 'API & Webhooks', 'settings' => 'Branding & Settings', 'fields' => 'Custom fields', 'templates' => 'Templates', 'reports' => 'Reports', 'mail' => 'Mail', 'maillog' => 'Mail Log', 'maintenance' => 'Maintenance', 'audit' => 'Audit', 'security' => 'Security', 'changes' => 'Changes'];
 ?>
 <div class="tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-2xl tw:border tw:border-line tw:bg-paper tw:p-2 tw:shadow-sm">
 <div role="tablist" aria-label="Admin sections" class="tw:flex tw:flex-1 tw:gap-1 tw:overflow-x-auto">
@@ -14,13 +14,46 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 <a href="<?= base_url('its-admin-backup') ?>" class="tw:rounded-xl tw:border tw:border-line tw:px-3 tw:py-2 tw:text-sm tw:font-semibold tw:text-ink tw:no-underline tw:hover:bg-brand-soft">Backup</a>
 </div>
 </div><?php if ($tab === 'users') { ?>
-<div class="card"><h3>Add User</h3><form method="post" action="<?= base_url('its-admin-users') ?>"><?= csrf_field() ?>
+<div class="grid grid-2">
+<div class="card"><h3><?= $editUser ? 'Edit User: ' . esc($editUser['username']) : 'Add User' ?></h3>
+<?php if ($editUser) { ?>
+<form method="post" action="<?= base_url('its-admin-user-update/' . (int) $editUser['id']) ?>"><?= csrf_field() ?>
+<label>Name</label><input name="name" value="<?= esc($editUser['name']) ?>" required>
+<label>Email</label><input type="email" name="email" value="<?= esc($editUser['email'] ?? '') ?>">
+<label>Role</label><select name="role"><option <?= $editUser['role'] === 'admin' ? 'selected' : '' ?>>admin</option><option <?= $editUser['role'] === 'manager' ? 'selected' : '' ?>>manager</option><option <?= $editUser['role'] === 'technician' ? 'selected' : '' ?>>technician</option><option value="client" <?= $editUser['role'] === 'client' ? 'selected' : '' ?>>client (portal login)</option></select>
+<label>Client (for portal logins)</label><select name="client_id"><option value="">None</option><?php foreach ($clients as $c) { ?><option value="<?= (int) $c['id'] ?>" <?= (int) ($editUser['client_id'] ?? 0) === (int) $c['id'] ? 'selected' : '' ?>><?= esc($c['name']) ?></option><?php } ?></select>
+<label>Status</label><select name="active"><option value="1" <?= (int) $editUser['active'] ? 'selected' : '' ?>>Active</option><option value="0" <?= !(int) $editUser['active'] ? 'selected' : '' ?>>Disabled</option></select>
+<label>New password (leave blank to keep current)</label><input type="password" name="password" minlength="8" autocomplete="new-password">
+<div style="display:flex;gap:8px"><button class="btn">Save changes</button><a class="button secondary" href="<?= base_url('its-admin?tab=users') ?>">Cancel</a></div>
+</form>
+<?php } else { ?>
+<form method="post" action="<?= base_url('its-admin-users') ?>"><?= csrf_field() ?>
 <label>Name</label><input name="name" required><label>Username</label><input name="username" required>
-<label>Role</label><select name="role"><option>admin</option><option>manager</option><option>technician</option><option value="client">client (portal login)</option></select>
+<label>Email</label><input type="email" name="email">
+<label>Role</label><select name="role"><option>admin</option><option>manager</option><option selected>technician</option><option value="client">client (portal login)</option></select>
 <label>Client (for portal logins)</label><select name="client_id"><option value="">None</option><?php foreach ($clients as $c) { ?><option value="<?= (int) $c['id'] ?>"><?= esc($c['name']) ?></option><?php } ?></select>
 <label>Password (min 8 characters)</label><input type="password" name="password" minlength="8" required>
-<button class="btn">Add</button></form>
-<table><tr><th>Name</th><th>Username</th><th>Role</th><th>2FA</th><th>Status</th><th></th></tr><?php foreach ($users as $u) { $locked = !empty($u['locked_until']) && strtotime($u['locked_until']) > time(); ?><tr><td><?= esc($u['name']) ?></td><td><?= esc($u['username']) ?></td><td><?= esc($u['role']) ?></td><td><?= !empty($u['totp_enabled']) ? '<span class="badge green">On</span>' : '<span class="badge gray">Off</span>' ?></td><td><?= $locked ? '<span class="badge orange">Locked</span>' : 'OK' ?></td><td><?php if (!empty($u['totp_enabled']) || $locked) { ?><form method="post" action="<?= base_url('its-admin-reset2fa/' . (int) $u['id']) ?>" onsubmit="return confirm('Reset two-factor and clear any lockout for this user?')"><?= csrf_field() ?><button class="button secondary">Reset 2FA / unlock</button></form><?php } ?></td></tr><?php } ?></table></div>
+<button class="btn">Add User</button></form>
+<?php } ?>
+</div>
+<div class="card"><h3>Users <span class="badge gray"><?= count($users) ?></span></h3>
+<div class="tbl"><table><tr><th>Name</th><th>Username</th><th>Role</th><th>2FA</th><th>Status</th><th></th></tr>
+<?php foreach ($users as $u) { $locked = !empty($u['locked_until']) && strtotime((string) $u['locked_until']) > time(); ?>
+<tr>
+<td><?= esc($u['name']) ?></td>
+<td><?= esc($u['username']) ?><br><small class="muted"><?= esc($u['email'] ?? '') ?></small></td>
+<td><span class="badge <?= $u['role'] === 'admin' ? 'blue' : 'gray' ?>"><?= esc($u['role']) ?></span></td>
+<td><?= !empty($u['totp_enabled']) ? '<span class="badge green">On</span>' : '<span class="badge gray">Off</span>' ?></td>
+<td><?= !(int) $u['active'] ? '<span class="badge orange">Disabled</span>' : ($locked ? '<span class="badge orange">Locked</span>' : '<span class="badge green">OK</span>') ?></td>
+<td style="white-space:nowrap">
+<a class="button secondary" href="<?= base_url('its-admin?tab=users&edit_user=' . (int) $u['id']) ?>">Edit</a>
+<?php if (!empty($u['totp_enabled']) || $locked) { ?><form style="display:inline" method="post" action="<?= base_url('its-admin-reset2fa/' . (int) $u['id']) ?>" onsubmit="return confirm('Reset two-factor and clear any lockout?')"><?= csrf_field() ?><button class="button secondary">Reset 2FA</button></form><?php } ?>
+<form style="display:inline" method="post" action="<?= base_url('its-admin-user-delete/' . (int) $u['id']) ?>" onsubmit="return confirm('Delete user <?= esc($u['username'], 'js') ?>? This cannot be undone.')"><?= csrf_field() ?><button class="btn danger">Delete</button></form>
+</td>
+</tr>
+<?php } ?>
+</table></div>
+</div></div>
 <?php } elseif ($tab === 'permissions') { ?>
 <div class="card"><h3>Role permissions</h3><p class="muted">Admins always have full access. Choose what each other role can do per area: None, View, or Edit. Clients only see the portal.</p>
 <form method="post" action="<?= base_url('its-admin-permissions') ?>"><?= csrf_field() ?>
@@ -66,9 +99,78 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 <label><input type="checkbox" name="weekly_report_enabled" value="1" <?= \App\Models\SettingModel::get('weekly_report_enabled','1')==='1'?'checked':'' ?> style="width:auto;"> Weekly auto</label>
 <label>Weekly recipients</label><input name="weekly_report_recipients" value="<?= esc(\App\Models\SettingModel::get('weekly_report_recipients','')) ?>">
 <button class="btn">Save</button></form></div>
-<?php } elseif ($tab === 'mail') { ?>
-<div class="card"><h3>Mail Test</h3><p class="muted">SMTP is configured in .env or via Admin settings.</p>
-<form method="post" action="<?= base_url('its-admin-mail') ?>"><?= csrf_field() ?><label>Test Email</label><input type="email" name="test_email" required><button class="btn">Send Test</button></form></div>
+<?php } elseif ($tab === 'mail') {
+$mailMethod = \App\Models\SettingModel::get('mail_method', 'mail');
+$smtpEnc = \App\Models\SettingModel::get('smtp_encryption', 'tls');
+?>
+<div class="grid grid-2">
+<div class="card"><h3>Mail Settings</h3>
+<form method="post" action="<?= base_url('its-admin-mail-settings') ?>"><?= csrf_field() ?>
+<label>Sender address</label><input type="email" name="mail_from_email" value="<?= esc(\App\Models\SettingModel::get('mail_from_email', '')) ?>" placeholder="noreply@yourdomain.com">
+<label>Sender name</label><input name="mail_from_name" value="<?= esc(\App\Models\SettingModel::get('mail_from_name', '')) ?>">
+<label>Send using</label>
+<div style="display:grid;gap:6px;margin:6px 0 14px">
+<label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="radio" name="mail_method" value="smtp" <?= $mailMethod === 'smtp' ? 'checked' : '' ?> style="width:auto;margin:0"> SMTP server (most reliable — cPanel, Gmail, Office 365)</label>
+<label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="radio" name="mail_method" value="mail" <?= $mailMethod === 'mail' ? 'checked' : '' ?> style="width:auto;margin:0"> Server's own mail (no password, may land in spam)</label>
+<label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="radio" name="mail_method" value="log" <?= $mailMethod === 'log' ? 'checked' : '' ?> style="width:auto;margin:0"> Test mode: log only, send nothing</label>
+</div>
+<?php
+$smtpVerify = \App\Models\SettingModel::get('smtp_verify_cert', '1');
+$_site = preg_replace('/^(https?:\/\/)?(www\.)?/', '', \App\Models\SettingModel::get('company_website', ''));
+$_parts = explode('/', $_site);
+$cpanelDomain = strtolower(trim($_parts[0] ?: 'yourdomain.com'));
+?>
+<div id="smtp-fields" style="<?= $mailMethod !== 'smtp' ? 'display:none' : '' ?>">
+<details style="margin-bottom:14px;border:1px solid var(--line);border-radius:10px;padding:10px 14px">
+<summary style="font-size:13px;font-weight:600;cursor:pointer;color:var(--brand)">cPanel quick-fill &amp; guide</summary>
+<div style="margin-top:10px;font-size:13px;line-height:1.7">
+<p style="margin:0 0 8px"><strong>Where to find cPanel email settings:</strong><br>Login → Email Accounts → Connect Devices → choose your account.</p>
+<p style="margin:0 0 8px"><strong>Typical settings for cPanel:</strong></p>
+<table style="font-size:12px;border-collapse:collapse;width:100%">
+<tr><td style="padding:3px 8px 3px 0;color:var(--muted);white-space:nowrap">Host</td><td><code>mail.yourdomain.com</code></td></tr>
+<tr><td style="padding:3px 8px 3px 0;color:var(--muted);white-space:nowrap">Port (SSL)</td><td><code>465</code> with SSL encryption</td></tr>
+<tr><td style="padding:3px 8px 3px 0;color:var(--muted);white-space:nowrap">Port (TLS)</td><td><code>587</code> with TLS encryption</td></tr>
+<tr><td style="padding:3px 8px 3px 0;color:var(--muted);white-space:nowrap">Username</td><td>Full email address, e.g. <code>support@yourdomain.com</code></td></tr>
+<tr><td style="padding:3px 8px 3px 0;color:var(--muted);white-space:nowrap">Password</td><td>Email account password set in cPanel</td></tr>
+</table>
+<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+<button type="button" class="btn secondary" style="font-size:12px;min-height:0;padding:7px 11px" onclick="cpFill('ssl')">Auto-fill SSL (port 465)</button>
+<button type="button" class="btn secondary" style="font-size:12px;min-height:0;padding:7px 11px" onclick="cpFill('tls')">Auto-fill TLS (port 587)</button>
+</div>
+</div>
+</details>
+<script>
+function cpFill(enc){
+  var d=<?= json_encode($cpanelDomain ?: 'yourdomain.com') ?>;
+  document.querySelector('[name=smtp_host]').value='mail.'+d;
+  document.querySelector('[name=smtp_port]').value=enc==='ssl'?'465':'587';
+  var sel=document.querySelector('[name=smtp_encryption]');
+  for(var i=0;i<sel.options.length;i++) if(sel.options[i].value===enc) sel.selectedIndex=i;
+  if(!document.querySelector('[name=smtp_username]').value) document.querySelector('[name=smtp_username]').value='support@'+d;
+}
+</script>
+<label>SMTP host</label><input name="smtp_host" value="<?= esc(\App\Models\SettingModel::get('smtp_host', '')) ?>" placeholder="mail.yourdomain.com">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div><label>Port</label><input type="number" name="smtp_port" value="<?= esc(\App\Models\SettingModel::get('smtp_port', '587')) ?>" placeholder="587"></div>
+<div><label>Security</label>
+<select name="smtp_encryption" style="margin-top:5px">
+<option value="tls" <?= $smtpEnc === 'tls' ? 'selected' : '' ?>>TLS — port 587</option>
+<option value="ssl" <?= $smtpEnc === 'ssl' ? 'selected' : '' ?>>SSL — port 465</option>
+<option value="none" <?= $smtpEnc === 'none' ? 'selected' : '' ?>>None — port 25</option>
+</select></div>
+</div>
+<label>Username (your full email address)</label><input name="smtp_username" value="<?= esc(\App\Models\SettingModel::get('smtp_username', '')) ?>" placeholder="support@yourdomain.com" autocomplete="off">
+<label>Password <span class="muted">(leave blank to keep saved)</span></label><input type="password" name="smtp_password" autocomplete="new-password" placeholder="<?= \App\Models\SettingModel::get('smtp_password') ? '•••••••• (saved)' : 'Email account password' ?>">
+<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:14px"><input type="hidden" name="smtp_verify_cert" value="1"><input type="checkbox" name="smtp_verify_cert" value="0" style="width:auto;margin:0" <?= $smtpVerify === '0' ? 'checked' : '' ?>> Disable SSL certificate verification <span class="muted">(only if your host uses a shared/self-signed cert)</span></label>
+</div>
+<button class="btn">Save mail settings</button></form>
+<script>document.querySelectorAll('[name=mail_method]').forEach(r=>r.addEventListener('change',()=>{document.getElementById('smtp-fields').style.display=r.value==='smtp'&&r.checked?'':'none'}));</script>
+</div>
+<div class="card"><h3>Send Test Email</h3><p class="muted">Sends a test message using the settings above. Save first if you changed anything.</p>
+<form method="post" action="<?= base_url('its-admin-mail') ?>"><?= csrf_field() ?><label>Send test to</label><input type="email" name="test_email" required placeholder="your@email.com"><button class="btn">Send Test</button></form>
+<?php if ($mailMethod === 'log') { ?><p class="muted" style="margin-top:12px"><i class="bi bi-cone-striped"></i> Test mode is on: password resets and reports appear in the mail log, nothing is sent.</p><?php } ?>
+</div>
+</div>
 <?php } elseif ($tab === 'fields') { $ef = $editField ?: []; $cfE = \App\Libraries\CustomFields::ENTITIES; $cfT = \App\Libraries\CustomFields::TYPES; ?>
 <div class="grid grid-2">
 <div class="card"><p class="eyebrow">Flexible data</p><h3><?= $ef ? 'Edit field' : 'Add a custom field' ?></h3>
@@ -116,11 +218,50 @@ $adminTabs = ['users' => 'Users', 'permissions' => 'Permissions', 'integrations'
 <button class="btn">Add</button></form>
 <table><tr><th>Name</th><th>Client</th><th>Interval</th><th>Next</th></tr><?php foreach ($schedules as $s) { ?><tr><td><?= esc($s['name']) ?></td><td><?= esc($s['client_name']) ?></td><td><?= $s['interval_days'] ?>d</td><td><?= esc($s['next_run']) ?></td></tr><?php } ?></table></div>
 <?php } elseif ($tab === 'audit') { ?>
+<div class="card" style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+<span class="muted">Last <?= count($logs) ?> audit entries — full history available in the export.</span>
+<a class="button secondary" href="<?= base_url('its-admin-audit-export') ?>"><i class="bi bi-download"></i> Export CSV</a>
+</div>
 <div class="card tbl"><table><tr><th>Time</th><th>User</th><th>Action</th><th>Module</th><th>Details</th></tr>
-<?php foreach ($logs as $l) { ?><tr><td><?= esc($l['created_at']) ?></td><td><?= esc($l['user_name'] ?? 'system') ?></td><td><?= esc($l['action']) ?></td><td><?= esc($l['module']) ?></td><td><?= esc($l['details']) ?></td></tr><?php } ?></table></div>
+<?php foreach ($logs as $l) { ?><tr><td class="muted" style="white-space:nowrap"><?= esc($l['created_at']) ?></td><td><?= esc($l['user_name'] ?? 'system') ?></td><td><?= esc($l['action']) ?></td><td><?= esc($l['module']) ?></td><td><?= esc($l['details']) ?></td></tr><?php } ?></table></div>
 <?php } elseif ($tab === 'maillog') { ?>
 <div class="card tbl"><table><tr><th>Time</th><th>To</th><th>Subject</th><th>Status</th></tr>
 <?php foreach ($mails as $m) { ?><tr><td><?= esc($m['created_at']) ?></td><td><?= esc($m['recipients']) ?></td><td><?= esc($m['subject']) ?></td><td><?= esc($m['status']) ?></td></tr><?php } ?></table></div>
+<?php } elseif ($tab === 'security') { ?>
+<div class="grid grid-2">
+<div class="card"><h3>Session &amp; Authentication</h3>
+<form method="post" action="<?= base_url('its-admin-sec') ?>"><?= csrf_field() ?>
+<input type="hidden" name="_has_2fa_field" value="1">
+<label>Sign out after inactivity (minutes)</label>
+<input type="number" name="idle_minutes" min="0" max="480" value="<?= esc(\App\Models\SettingModel::get('session_timeout', '120')) ?>">
+<p class="muted" style="margin-top:-8px">0 = never time out. Recommended: 60–120 minutes.</p>
+<label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" name="require_2fa_admin" value="1" <?= \App\Models\SettingModel::get('require_2fa_admin', '0') === '1' ? 'checked' : '' ?> style="width:auto;margin:0"> Require two-factor authentication for administrators</label>
+<p class="muted">Admins without 2FA will be sent to their security page before they can continue. Set up your own 2FA first in <a href="<?= base_url('its-security') ?>">Security settings</a>.</p>
+<label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:10px"><input type="checkbox" name="require_2fa_staff" value="1" <?= \App\Models\SettingModel::get('require_2fa_staff', '0') === '1' ? 'checked' : '' ?> style="width:auto;margin:0"> Require two-factor authentication for all staff (techs, managers)</label>
+<p class="muted">Non-admin staff without 2FA will be redirected to their security page until they set it up.</p>
+<button class="btn" style="margin-top:8px">Save session settings</button>
+</form></div>
+<div class="card"><h3>IP Address Restrictions</h3>
+<form method="post" action="<?= base_url('its-admin-sec') ?>"><?= csrf_field() ?>
+<label>Allowed IP addresses / ranges</label>
+<textarea name="ip_allow" rows="4" placeholder="One per line. CIDR notation OK.&#10;E.g. 192.168.1.0/24&#10;41.90.0.0/16"><?= esc(\App\Models\SettingModel::get('ip_allow', '')) ?></textarea>
+<p class="muted" style="margin-top:-8px">Leave empty to allow all addresses. Your current IP: <code><?= esc(service('request')->getIPAddress()) ?></code></p>
+<label>Blocked IP addresses / ranges</label>
+<textarea name="ip_block" rows="4" placeholder="One per line."><?= esc(\App\Models\SettingModel::get('ip_block', '')) ?></textarea>
+<button class="btn">Save IP settings</button>
+</form></div>
+</div>
+<div class="card" style="margin-top:0"><h3>System Access Shortcuts</h3>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<a class="button secondary" href="<?= base_url('its-signins') ?>"><i class="bi bi-clock-history"></i> Sign-in history</a>
+<a class="button secondary" href="<?= base_url('its-logs') ?>"><i class="bi bi-file-text"></i> Error logs</a>
+<a class="button secondary" href="<?= base_url('its-cleanup') ?>"><i class="bi bi-trash3"></i> System cleanup</a>
+<a class="button secondary" href="<?= base_url('its-health') ?>"><i class="bi bi-heart-pulse"></i> Health check</a>
+</div>
+</div>
+<?php } elseif ($tab === 'changes') { ?>
+<div class="card tbl"><table><tr><th>Time</th><th>User</th><th>Category</th><th>Change</th></tr>
+<?php foreach (array_reverse($customizations) as $c) { ?><tr><td><?= esc($c['timestamp']) ?></td><td><?= esc($c['user']) ?></td><td><?= esc($c['category']) ?></td><td><?= esc($c['change']) ?></td></tr><?php } ?></table></div>
 <?php } else { ?>
 <div class="card tbl"><table><tr><th>Time</th><th>User</th><th>Category</th><th>Change</th></tr>
 <?php foreach (array_reverse($customizations) as $c) { ?><tr><td><?= esc($c['timestamp']) ?></td><td><?= esc($c['user']) ?></td><td><?= esc($c['category']) ?></td><td><?= esc($c['change']) ?></td></tr><?php } ?></table></div>

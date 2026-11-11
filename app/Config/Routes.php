@@ -4,7 +4,10 @@ use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
 $routes->GET('/', 'Website::index');
-$routes->match(['GET', 'POST'], 'its-install', 'ItsAuth::install');
+$routes->match(['GET', 'POST'], 'its-setup', 'ItsSetup::index');
+if (ENVIRONMENT !== 'production') {
+    $routes->match(['GET', 'POST'], 'its-install', 'ItsAuth::install');
+}
 $routes->match(['GET', 'POST'], 'its-login', 'ItsAuth::login');
 $routes->POST('its-logout', 'ItsAuth::logout');
 $routes->match(['GET', 'POST'], 'its-2fa', 'ItsAuth::twoFactor');
@@ -105,9 +108,14 @@ $routes->match(['GET', 'POST'], 'its-verify', 'ItsReport::verify');
 
 $routes->GET('its-admin', 'ItsAdmin::panel');
 $routes->POST('its-admin-users', 'ItsAdmin::addUser');
+$routes->POST('its-admin-user-update/(:num)', 'ItsAdmin::updateUser/$1');
+$routes->POST('its-admin-user-delete/(:num)', 'ItsAdmin::deleteUser/$1');
 $routes->POST('its-admin-settings', 'ItsAdmin::saveSettings');
 $routes->POST('its-admin-reports', 'ItsAdmin::saveReports');
 $routes->POST('its-admin-mail', 'ItsAdmin::mailTest');
+$routes->POST('its-admin-mail-settings', 'ItsAdmin::saveMail');
+$routes->POST('its-admin-sec', 'ItsAdmin::saveSecSettings');
+$routes->GET('its-admin-audit-export', 'ItsAdmin::exportAudit');
 $routes->POST('its-admin-schedules', 'ItsAdmin::addSchedule');
 $routes->GET('its-admin-backup', 'ItsAdmin::backup');
 $routes->POST('its-admin-theme', 'ItsAdmin::saveTheme');
@@ -130,6 +138,9 @@ $routes->POST('its-updates-clearlog', 'ItsUpdates::clearLog');
 $routes->POST('its-updates-folder-upload', 'ItsUpdates::folderUpload');
 $routes->POST('its-updates-folder-install', 'ItsUpdates::folderInstall');
 $routes->POST('its-updates-folder-delete', 'ItsUpdates::folderDelete');
+$routes->GET('its-updates-progress', 'ItsUpdates::progress');
+$routes->POST('its-updates-restore', 'ItsUpdates::restore');
+$routes->POST('its-updates-integrity-check', 'ItsUpdates::integrityCheck');
 
 $routes->GET('its-cron-monthly', 'ItsMisc::cronMonthly');
 $routes->GET('its-cron-weekly', 'ItsMisc::cronWeekly');
@@ -149,6 +160,10 @@ $routes->GET('api/v1/assets', 'ItsApi::assets');
 $routes->POST('its-portal-rate/(:num)', 'ItsPortal::rate/$1');
 $routes->POST('its-tickets-meta/(:num)', 'ItsTickets::meta/$1');
 $routes->POST('its-tickets-time/(:num)', 'ItsTickets::addTime/$1');
+$routes->POST('its-tickets-bulk', 'ItsTickets::bulk');
+$routes->POST('its-tickets-watch/(:num)', 'ItsTickets::watch/$1');
+$routes->POST('its-tickets-merge/(:num)', 'ItsTickets::merge/$1');
+$routes->match(['GET', 'POST'], 'its-rate/(:segment)', 'ItsTickets::rate/$1');
 $routes->GET('its-kb', 'ItsKb::index');
 $routes->POST('its-kb-save', 'ItsKb::save');
 $routes->POST('its-kb-delete/(:num)', 'ItsKb::delete/$1');
@@ -157,11 +172,36 @@ $routes->POST('its-canned-delete/(:num)', 'ItsKb::cannedDelete/$1');
 $routes->GET('its-portal-kb', 'ItsKb::portal');
 $routes->GET('its-search', 'ItsSearch::index');
 $routes->GET('its-health', 'ItsHealth::index');
+$routes->POST('its-health-domains', 'ItsHealth::saveDomain');
+$routes->POST('its-health-domains-delete/(:num)', 'ItsHealth::deleteDomain/$1');
+$routes->GET('its-logs', 'ItsHealth::logs');
+$routes->GET('its-logs-download', 'ItsHealth::downloadLogs');
+$routes->POST('its-logs-clear', 'ItsHealth::clearLogs');
+$routes->GET('its-signins', 'ItsHealth::signins');
+$routes->GET('its-cleanup', 'ItsHealth::cleanup');
+$routes->POST('its-cleanup-run', 'ItsHealth::runCleanup');
 $routes->GET('its-billing', 'ItsBilling::index');
 $routes->POST('its-billing-save/(:num)', 'ItsBilling::save/$1');
 $routes->GET('its-billing-csv', 'ItsBilling::csv');
 $routes->POST('its-calendar-token', 'ItsBilling::icalToken');
 $routes->GET('its-calendar.ics', 'ItsBilling::ical');
+
+// Extension portal
+$routes->GET('its-extensions', 'ItsExtensions::index');
+$routes->POST('its-extensions-upload', 'ItsExtensions::upload');
+$routes->POST('its-extensions-approve/(:num)', 'ItsExtensions::approve/$1');
+$routes->POST('its-extensions-reject/(:num)', 'ItsExtensions::reject/$1');
+$routes->POST('its-extensions-delete/(:num)', 'ItsExtensions::delete/$1');
+$routes->GET('its-extensions-download/(:num)', 'ItsExtensions::download/$1');
+// Extension subscription management (admin)
+$routes->GET('its-ext-subscriptions', 'ItsExtSubscriptions::index');
+$routes->POST('its-ext-pkg-save', 'ItsExtSubscriptions::savePackage');
+$routes->POST('its-ext-pkg-delete/(:num)', 'ItsExtSubscriptions::deletePackage/$1');
+$routes->POST('its-ext-sub-approve/(:num)', 'ItsExtSubscriptions::approve/$1');
+$routes->POST('its-ext-sub-suspend/(:num)', 'ItsExtSubscriptions::suspend/$1');
+$routes->POST('its-ext-sub-reactivate/(:num)', 'ItsExtSubscriptions::reactivate/$1');
+$routes->POST('its-ext-sub-delete/(:num)', 'ItsExtSubscriptions::deleteSub/$1');
+$routes->POST('its-ext-sub-create', 'ItsExtSubscriptions::createDirect');
 
 // Website CMS (staff)
 $routes->GET('its-site', 'ItsSite::index');
@@ -175,6 +215,14 @@ $routes->POST('its-site-preview', 'ItsSite::preview');
 $routes->POST('its-site-upload', 'ItsSite::upload');
 $routes->POST('its-site-design', 'ItsSite::saveDesign');
 $routes->POST('its-site-menu', 'ItsSite::saveMenu');
+
+// Public extension marketplace and API.
+$routes->GET('extensions', 'Website::extensions');
+$routes->GET('extensions-download/(:num)', 'Website::extensionDownload/$1');
+$routes->GET('extensions-api', 'Website::extensionsApi');
+$routes->POST('extensions-access-request', 'ItsExtSubscriptions::register');
+// Products showcase
+$routes->GET('products', 'Website::products');
 
 // Public website. The catch-all for CMS pages must stay LAST so it never shadows the routes above.
 $routes->GET('sitemap.xml', 'Website::sitemap');

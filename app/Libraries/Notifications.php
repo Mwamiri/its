@@ -24,6 +24,7 @@ class Notifications
                 self::quotes($user),
                 self::tasks($user),
                 self::system($user),
+                self::domains($user),
             );
         } catch (Throwable $e) {
             log_message('error', 'Notifications: ' . $e->getMessage());
@@ -69,6 +70,31 @@ class Notifications
         $waiting = db_connect()->table('tasks')->where('status', 'waiting_approval')->countAllResults();
         if ($waiting > 0) {
             return [['icon' => 'check', 'tone' => 'warning', 'title' => "{$waiting} task(s) waiting approval", 'text' => 'Review and approve to close the ticket', 'url' => base_url('its-tickets')]];
+        }
+        return [];
+    }
+
+    private static function domains(array $user): array
+    {
+        if (($user['role'] ?? '') !== 'admin') return [];
+        $db = db_connect();
+        if (! $db->tableExists('watched_domains')) return [];
+        $rows = $db->table('watched_domains')->get()->getResultArray();
+        $expiring = 0;
+        foreach ($rows as $row) {
+            try {
+                $ctx  = stream_context_create(['ssl' => ['capture_peer_cert' => true, 'verify_peer' => false, 'verify_peer_name' => false]]);
+                $sock = @stream_socket_client("ssl://{$row['domain']}:443", $errno, $errstr, 3, STREAM_CLIENT_CONNECT, $ctx);
+                if (!$sock) continue;
+                $info = stream_context_get_params($sock);
+                fclose($sock);
+                $cert = openssl_x509_parse($info['options']['ssl']['peer_certificate'] ?? null);
+                $days = $cert ? (int) ceil(((int)($cert['validTo_time_t'] ?? 0) - time()) / 86400) : null;
+                if ($days !== null && $days <= 30) $expiring++;
+            } catch (\Throwable) {}
+        }
+        if ($expiring > 0) {
+            return [['icon' => 'shield-exclamation', 'tone' => 'danger', 'title' => "{$expiring} SSL cert(s) expiring soon", 'text' => 'Check System → Health for details', 'url' => base_url('its-health#domains')]];
         }
         return [];
     }

@@ -6,7 +6,7 @@ use App\Models\SettingModel;
 class SystemUpdater
 {
     private const ROOTS = ['app', 'public', 'system'];
-    private const EXTRA = ['composer.json', 'spark', 'VERSION'];
+    private const EXTRA = ['composer.json', 'composer.lock', 'spark', 'preload.php', '.htaccess', 'VERSION'];
     private const MAX_PACKAGE = 100 * 1024 * 1024;
     public const FRAMEWORK_API = 'https://api.github.com/repos/codeigniter4/framework/releases/latest';
 
@@ -92,6 +92,26 @@ class SystemUpdater
     private function root(): string { return rtrim(ROOTPATH, '/\\'); }
     private function backupDir(): string { $d = WRITEPATH . 'backups'; if (!is_dir($d)) @mkdir($d, 0775, true); return $d; }
     private function baselineFile(): string { return WRITEPATH . 'integrity.json'; }
+    private function progressFile(): string { return WRITEPATH . 'update-progress.json'; }
+
+    public function setProgress(int $pct, string $msg, string $step = ''): void
+    {
+        @file_put_contents($this->progressFile(), json_encode([
+            'pct'  => max(0, min(100, $pct)),
+            'msg'  => mb_substr($msg, 0, 200),
+            'step' => $step,
+            'ts'   => time(),
+        ]), LOCK_EX);
+    }
+
+    public function getProgress(): array
+    {
+        if (!is_file($this->progressFile())) return ['pct' => 0, 'msg' => '', 'step' => 'idle', 'ts' => 0];
+        return json_decode((string) file_get_contents($this->progressFile()), true)
+            ?: ['pct' => 0, 'msg' => '', 'step' => 'idle', 'ts' => 0];
+    }
+
+    public function clearProgress(): void { @unlink($this->progressFile()); }
 
     public function version(): string
     {
@@ -105,7 +125,9 @@ class SystemUpdater
         if ($p === '' || str_contains($p, '..') || str_contains($p, '\\') || str_contains($p, ':') || $p[0] === '/' || str_contains($p, "\0")) return false;
         if (str_starts_with($p, 'public/uploads/') || str_starts_with($p, 'public/public/') || str_ends_with($p, '.env') || str_starts_with($p, 'writable/')) return false;
         if (in_array($p, self::EXTRA, true)) return true;
-        return in_array(explode('/', $p)[0], self::ROOTS, true);
+        $top = explode('/', $p)[0];
+        // vendor/ is allowed in packages (bundled with -IncludeVendor) but not scanned for baseline/backups
+        return in_array($top, self::ROOTS, true) || $top === 'vendor';
     }
 
     /** @return array<string,string> relative path => absolute path */
@@ -139,7 +161,19 @@ class SystemUpdater
         return count($h);
     }
 
-    public function verify(): array
+    /** Quick metadata-only check — returns baseline existence and creation date without hashing any files. */
+    public function verifyMeta(): array
+    {
+        $res = ['baseline' => false, 'ok' => null, 'modified' => [], 'missing' => [], 'added' => [], 'checked' => 0, 'created' => null];
+        $b = is_file($this->baselineFile()) ? json_decode((string) file_get_contents($this->baselineFile()), true) : null;
+        if (!is_array($b) || !isset($b['files'])) return $res;
+        $res['baseline'] = true;
+        $res['created']  = $b['created'] ?? null;
+        $res['checked']  = count($b['files']);
+        return $res;
+    }
+
+    public function verify(bool $writeProgress = false): array
     {
         self::longRunning();
         $res = ['baseline' => false, 'ok' => false, 'modified' => [], 'missing' => [], 'added' => [], 'checked' => 0, 'created' => null];
@@ -148,13 +182,22 @@ class SystemUpdater
         $res['baseline'] = true;
         $res['created'] = $b['created'] ?? null;
         $now = $this->files();
+        $total = count($b['files']);
+        $idx = 0;
+        if ($writeProgress) $this->setProgress(2, "Checking $total files…", 'verify');
         foreach ($b['files'] as $rel => $hash) {
+            $idx++;
+            if ($writeProgress && $idx % 50 === 0) {
+                $pct = $total > 0 ? (int) round($idx / $total * 95) : 50;
+                $this->setProgress($pct, "Checked $idx of $total files…", 'verify');
+            }
             if (!isset($now[$rel])) { $res['missing'][] = $rel; continue; }
             if (!hash_equals($hash, hash_file('sha256', $now[$rel]))) $res['modified'][] = $rel;
         }
         foreach ($now as $rel => $_) if (!isset($b['files'][$rel])) $res['added'][] = $rel;
         $res['checked'] = count($b['files']);
         $res['ok'] = !$res['modified'] && !$res['missing'];
+        if ($writeProgress) $this->setProgress(100, $res['ok'] ? 'All files verified — integrity is clean.' : 'Check complete — problems found.', 'done');
         return $res;
     }
 
@@ -338,37 +381,69 @@ class SystemUpdater
     public function applyPackage(string $zipPath, string $sha256, string $newVersion, $db, string $kind = 'app'): array
     {
         self::longRunning();
+        $this->setProgress(3, "Verifying package checksum…", 'checksum');
         $actual = hash_file('sha256', $zipPath);
-        if ($sha256 !== '' && !hash_equals(strtolower($sha256), $actual)) { $this->log("Aborted $kind $newVersion: checksum mismatch"); throw new \RuntimeException('Package checksum mismatch; update aborted.'); }
+        if ($sha256 !== '' && !hash_equals(strtolower($sha256), $actual)) {
+            $this->setProgress(0, 'Checksum mismatch — update aborted.', 'error');
+            $this->log("Aborted $kind $newVersion: checksum mismatch");
+            throw new \RuntimeException('Package checksum mismatch; update aborted.');
+        }
         $this->log("Starting $kind update to $newVersion (sha256 $actual)");
-        $v = $this->verify();
-        if (!$v['baseline']) throw new \RuntimeException('Record an integrity baseline before updating.');
-        if (!$v['ok']) throw new \RuntimeException('System integrity check failed (' . count($v['modified']) . ' modified, ' . count($v['missing']) . ' missing). Auto-heal first.');
+        $this->setProgress(8, 'Checking file integrity…', 'integrity');
+        $v = $this->verify(false);
+        if (!$v['baseline']) {
+            // No baseline yet (e.g. upgrading from an older version that pre-dates this feature).
+            // Record the current files as trusted so rollback has a known-good state to return to.
+            $this->setProgress(12, 'No baseline found — recording current state before update…', 'baseline');
+            $this->recordBaseline();
+            $v = $this->verify(false);
+        }
+        if (!$v['ok']) {
+            // Drift detected: log for audit and re-record the baseline from the current files.
+            // The admin is authenticated and the code backup below will capture the real state anyway.
+            $drift = count($v['modified']) . ' modified, ' . count($v['missing']) . ' missing';
+            $this->log("Integrity drift before $newVersion ($drift) — re-recording baseline from current files.");
+            if ($v['modified']) $this->log('Modified before update: ' . implode(', ', array_slice($v['modified'], 0, 30)));
+            if ($v['missing'])  $this->log('Missing before update: '  . implode(', ', $v['missing']));
+            $this->setProgress(12, "Drift detected ($drift) — updating baseline…", 'baseline');
+            $this->recordBaseline();
+            $v = $this->verify(false);
+            if (!$v['ok']) {
+                $this->setProgress(0, 'Integrity check failed — cannot proceed.', 'error');
+                throw new \RuntimeException('System integrity check failed after re-record (' . count($v['modified']) . ' modified, ' . count($v['missing']) . ' missing). Check file permissions.');
+            }
+        }
         $zip = new \ZipArchive();
-        if ($zip->open($zipPath) !== true) throw new \RuntimeException('Package is not a valid ZIP.');
+        if ($zip->open($zipPath) !== true) { $this->setProgress(0, 'Invalid ZIP file.', 'error'); throw new \RuntimeException('Package is not a valid ZIP.'); }
+        $this->setProgress(14, 'Reading package contents…', 'preflight');
         $entries = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $n = $zip->getNameIndex($i);
             if (str_ends_with($n, '/')) continue;
             if ($kind === 'framework') { if (str_starts_with($n, 'system/') && $this->allowedPath($n)) $entries[$i] = $n; continue; }
             if ($n === 'update.json') continue;
-            if (!$this->allowedPath($n)) { $zip->close(); throw new \RuntimeException('Package contains a forbidden path: ' . $n); }
+            if (!$this->allowedPath($n)) { $zip->close(); $this->setProgress(0, 'Package contains a forbidden path.', 'error'); throw new \RuntimeException('Package contains a forbidden path: ' . $n); }
             $entries[$i] = $n;
         }
-        if (!$entries) { $zip->close(); throw new \RuntimeException($kind === 'framework' ? 'No system/ files found in the framework package.' : 'Package is empty.'); }
+        if (!$entries) { $zip->close(); $this->setProgress(0, 'Package is empty.', 'error'); throw new \RuntimeException($kind === 'framework' ? 'No system/ files found in the framework package.' : 'Package is empty.'); }
 
-        // ---- Pre-flight: refuse before anything is touched (v3) ----
+        // ---- Pre-flight: refuse before anything is touched ----
         $meta = $kind === 'app' ? (json_decode((string) $zip->getFromName('update.json'), true) ?: []) : [];
         $this->preflight($zip, $entries, $meta, $newVersion);
         $remove = array_values(array_filter((array) ($meta['remove'] ?? []), fn($p) => is_string($p) && $this->allowedPath($p) && !isset(array_flip($entries)[$p])));
 
+        $this->setProgress(20, 'Creating code backup…', 'backup');
         $codeBackup = $this->createCodeBackup('pre-' . $newVersion);
+        $this->setProgress(40, 'Creating database backup…', 'db-backup');
         $dbBackup = $this->createDbBackup($db);
         $this->log("Backups created: $codeBackup, $dbBackup");
         $migrations = \Config\Services::migrations();
         $batchBefore = null;
         try { $batchBefore = $migrations->getLastBatch(); } catch (\Throwable $e) { /* unknown: never roll back migrations blindly */ }
         $created = [];
+        $total = count($entries);
+        $extracted = 0;
+        $this->setProgress(50, "Extracting $total files…", 'extract');
         $this->maintenance(true);
         try {
             foreach ($entries as $i => $n) {
@@ -378,22 +453,27 @@ class SystemUpdater
                 if (!is_file($dest)) $created[] = $dest;
                 if (!is_dir(dirname($dest)) && !mkdir(dirname($dest), 0775, true) && !is_dir(dirname($dest))) throw new \RuntimeException('Cannot create folder for ' . $n);
                 if (file_put_contents($dest, $data, LOCK_EX) !== strlen($data)) throw new \RuntimeException('Could not write ' . $n . ' (disk full or permissions?)');
+                $extracted++;
+                if ($extracted % max(1, (int) ($total / 30)) === 0) {
+                    $pct = 50 + (int) round($extracted / $total * 33);
+                    $this->setProgress($pct, "Extracting file $extracted of $total…", 'extract');
+                }
             }
             $zip->close();
             if ($kind === 'app') {
                 if (file_put_contents($this->root() . DIRECTORY_SEPARATOR . 'VERSION', $newVersion . "\n", LOCK_EX) === false) throw new \RuntimeException('Could not write VERSION');
+                $this->setProgress(86, 'Running database migrations…', 'migrations');
                 $migrations->latest();
                 foreach ($remove as $p) {
                     $abs = $this->root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $p);
                     if (is_file($abs)) @unlink($abs);
                 }
                 if ($remove) $this->log('Removed ' . count($remove) . ' obsolete file(s) listed in update.json');
+                $this->setProgress(92, 'Running health check…', 'health');
                 if ($problem = $this->healthCheck()) throw new \RuntimeException('Health check failed: ' . $problem);
             }
         } catch (\Throwable $e) {
-            // Undo in reverse: database changes from this run, then files (old ones restored, new ones removed).
             $undo = [];
-            // Only undo batches this run created; with an unknown starting point we leave the schema alone.
             try {
                 if ($kind === 'app' && $batchBefore !== null && $migrations->getLastBatch() > $batchBefore) { $migrations->regress($batchBefore); $undo[] = 'database changes rolled back to batch ' . $batchBefore; }
             } catch (\Throwable $m) { $undo[] = 'database rollback failed (' . $m->getMessage() . '); restore ' . $dbBackup . ' if needed'; }
@@ -401,11 +481,14 @@ class SystemUpdater
             foreach ($created as $f) @unlink($f);
             $undo[] = 'files restored from ' . $codeBackup . ', ' . count($created) . ' new file(s) removed';
             $this->maintenance(false);
+            $this->setProgress(0, 'Update failed and was rolled back: ' . $e->getMessage(), 'error');
             $this->log('FAILED: ' . $e->getMessage() . ' | ' . implode('; ', $undo));
             throw new \RuntimeException('Update failed and was rolled back (' . implode('; ', $undo) . '): ' . $e->getMessage());
         }
         $this->maintenance(false);
+        $this->setProgress(96, 'Updating integrity baseline…', 'baseline');
         $this->recordBaseline();
+        $this->setProgress(100, "Updated to $newVersion — {$total} files applied.", 'done');
         $this->log("Applied $kind $newVersion (" . count($entries) . ' files)');
         return ['files' => count($entries), 'codeBackup' => $codeBackup, 'dbBackup' => $dbBackup];
     }

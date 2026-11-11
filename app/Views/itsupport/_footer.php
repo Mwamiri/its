@@ -102,17 +102,123 @@ $footerVersion = $footerUser && ($footerUser['role'] ?? '') !== 'client' ? (new 
 })();
 </script>
 <?php if (session('its_user') && (session('its_user')['role'] ?? '') !== 'client') { ?>
-<dialog id="cmd-dialog" aria-label="Search" style="width:min(560px,92vw);border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--paper);color:var(--ink)">
-<label for="cmd-input">Search tickets, clients, assets, articles</label><input id="cmd-input" type="search" autocomplete="off" placeholder="Type at least 2 characters">
-<ul id="cmd-results" style="list-style:none;padding:0;margin:10px 0 0"></ul><button type="button" id="cmd-close" class="btn">Close</button></dialog>
+<style>
+#cmd-dialog{border:none;padding:0;background:transparent;width:100%;max-width:100%;height:100%;max-height:100%;overflow:hidden}
+#cmd-dialog::backdrop{background:rgba(15,23,42,.55);backdrop-filter:blur(4px)}
+.cmd-wrap{position:fixed;top:8vh;left:50%;transform:translateX(-50%);width:min(580px,92vw);background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 64px rgba(15,23,42,.22);display:flex;flex-direction:column;max-height:76vh;overflow:hidden}
+.cmd-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-shrink:0}
+.cmd-head-icon{font-size:18px;color:var(--muted);flex-shrink:0}
+#cmd-input{flex:1;border:none;background:transparent;font-size:16px;color:var(--ink);outline:none;padding:0;min-width:0}
+#cmd-input::placeholder{color:var(--muted)}
+.cmd-esc{font:11px/1 monospace;border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:var(--muted);flex-shrink:0}
+.cmd-spin{display:none;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:cspin .6s linear infinite;flex-shrink:0}
+@keyframes cspin{to{transform:rotate(360deg)}}
+#cmd-body{flex:1;overflow-y:auto;overscroll-behavior:contain}
+.cmd-sec-lbl{padding:10px 18px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.cmd-item{display:flex;align-items:center;gap:12px;padding:9px 18px;text-decoration:none;color:var(--ink);font-size:13.5px;width:100%;border:none;background:none;cursor:pointer;transition:background .1s}
+.cmd-item:hover,.cmd-item[aria-selected=true]{background:var(--brand-soft)}
+.cmd-item[aria-selected=true] .cmd-ico{color:var(--brand)}
+.cmd-ico{width:34px;height:34px;border-radius:9px;background:var(--canvas);display:grid;place-items:center;font-size:15px;flex-shrink:0;transition:background .1s}
+.cmd-item:hover .cmd-ico,.cmd-item[aria-selected=true] .cmd-ico{background:color-mix(in srgb,var(--brand) 12%,var(--canvas))}
+.cmd-body{flex:1;min-width:0}
+.cmd-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.cmd-sub{font-size:12px;color:var(--muted);display:block}
+.cmd-badge{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--brand-soft);color:var(--brand);font-weight:600;white-space:nowrap;flex-shrink:0}
+.cmd-empty{padding:36px 18px;text-align:center;color:var(--muted);font-size:13px}
+.cmd-empty-icon{font-size:28px;opacity:.3;display:block;margin-bottom:8px}
+.cmd-foot{display:flex;gap:16px;padding:10px 18px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);flex-shrink:0}
+.cmd-foot kbd{font:11px/1 monospace;border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-right:3px}
+</style>
+<dialog id="cmd-dialog" aria-label="Search" aria-modal="true">
+<div class="cmd-wrap" role="combobox" aria-expanded="true" aria-owns="cmd-listbox" aria-haspopup="listbox">
+<div class="cmd-head">
+  <i class="bi bi-search cmd-head-icon" aria-hidden="true"></i>
+  <input id="cmd-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search tickets, clients, assets, extensions…" aria-label="Search" aria-autocomplete="list" aria-controls="cmd-listbox">
+  <div class="cmd-spin" id="cmd-spin" aria-hidden="true"></div>
+  <kbd class="cmd-esc">Esc</kbd>
+</div>
+<div id="cmd-body">
+  <div id="cmd-quick">
+    <div class="cmd-sec-lbl">Quick navigation</div>
+    <?php
+    $cmdNav = [
+        ['its-dashboard',        'house',           'Dashboard'],
+        ['its-tickets',          'ticket-detailed', 'Tickets'],
+        ['its-tickets#new-ticket','plus-circle',    'New ticket'],
+        ['its-clients',          'building',        'Clients'],
+        ['its-assets',           'hdd',             'Assets'],
+        ['its-network',          'wifi',            'Network'],
+        ['its-extensions',       'plugin',          'Extensions'],
+        ['its-signins',          'person-lock',     'Sign-ins'],
+        ['its-updates',          'arrow-up-circle', 'Updates'],
+    ];
+    $cmdIconColor = ['plus-circle' => '#16a34a', 'arrow-up-circle' => '#d97706', 'person-lock' => '#7c3aed', 'plugin' => '#0891b2'];
+    foreach ($cmdNav as [$url, $icon, $label]) { ?>
+    <a class="cmd-item" href="<?= base_url($url) ?>" tabindex="-1" aria-selected="false">
+      <span class="cmd-ico" style="<?= isset($cmdIconColor[$icon]) ? 'color:' . $cmdIconColor[$icon] : '' ?>"><i class="bi bi-<?= $icon ?>" aria-hidden="true"></i></span>
+      <span class="cmd-body"><span class="cmd-lbl"><?= esc($label) ?></span></span>
+    </a>
+    <?php } ?>
+  </div>
+  <div id="cmd-listbox" role="listbox" aria-label="Search results" hidden></div>
+</div>
+<div class="cmd-foot"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>↵</kbd> Open</span><span><kbd>Esc</kbd> Close</span></div>
+</div>
+</dialog>
 <script>
-(function(){var d=document.getElementById('cmd-dialog');if(!d||!d.showModal)return;var i=document.getElementById('cmd-input'),l=document.getElementById('cmd-results'),t;
-function open(){d.showModal();i.value='';l.innerHTML='';i.focus()}
-document.querySelectorAll('#cmd-open,[data-cmd-open]').forEach(function(b){b.addEventListener('click',open)});document.getElementById('cmd-close').addEventListener('click',function(){d.close()});
-document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();open()}});
-i.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){var q=i.value.trim();if(q.length<2){l.innerHTML='';return}
-fetch('<?= base_url('its-search') ?>?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(rows){l.innerHTML='';
-if(!rows.length){l.textContent='No results.';return}rows.forEach(function(x){var li=document.createElement('li'),a=document.createElement('a');a.href=x.url;a.textContent=x.type+': '+x.label;a.style.display='block';a.style.padding='7px 4px';li.appendChild(a);l.appendChild(li)})})},200)});})();
+(function(){
+var dlg=document.getElementById('cmd-dialog');
+if(!dlg||!dlg.showModal)return;
+var inp=document.getElementById('cmd-input'),res=document.getElementById('cmd-listbox'),quick=document.getElementById('cmd-quick'),spin=document.getElementById('cmd-spin'),tmr;
+var ICONS={ticket:'ticket-detailed',client:'building',asset:'hdd',article:'journal-text',extension:'plugin'};
+var COLORS={ticket:'var(--brand)',client:'#16a34a',asset:'#d97706',article:'#7c3aed',extension:'#0891b2'};
+function allItems(){return[...document.querySelectorAll('#cmd-dialog .cmd-item')].filter(function(el){return!el.closest('[hidden]')})}
+function selectIdx(idx){var items=allItems();items.forEach(function(i){i.setAttribute('aria-selected','false')});if(items[idx]){items[idx].setAttribute('aria-selected','true');items[idx].scrollIntoView({block:'nearest'})}}
+function open(){dlg.showModal();inp.value='';res.hidden=true;res.innerHTML='';quick.hidden=false;spin.style.display='';inp.focus()}
+document.querySelectorAll('#cmd-open,[data-cmd-open]').forEach(function(b){b.addEventListener('click',open)});
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();open();return}
+  if(!dlg.open)return;
+  if(e.key==='Escape'){dlg.close();return}
+  var items=allItems(),cur=items.findIndex(function(i){return i.getAttribute('aria-selected')==='true'});
+  if(e.key==='ArrowDown'){e.preventDefault();selectIdx(cur<items.length-1?cur+1:0)}
+  else if(e.key==='ArrowUp'){e.preventDefault();selectIdx(cur<=0?items.length-1:cur-1)}
+  else if(e.key==='Enter'){var sel=document.querySelector('#cmd-dialog .cmd-item[aria-selected=true]');if(sel){sel.click();dlg.close()}}
+});
+dlg.addEventListener('click',function(e){if(e.target===dlg)dlg.close()});
+function mkItem(x){
+  var a=document.createElement('a');a.className='cmd-item';a.href=x.url;a.setAttribute('aria-selected','false');a.setAttribute('role','option');
+  a.addEventListener('click',function(){dlg.close()});
+  var ic=document.createElement('span');ic.className='cmd-ico';ic.style.color=COLORS[x.type]||'var(--brand)';ic.innerHTML='<i class="bi bi-'+(ICONS[x.type]||'circle')+'" aria-hidden="true"></i>';
+  var bd=document.createElement('span');bd.className='cmd-body';
+  var lb=document.createElement('span');lb.className='cmd-lbl';lb.textContent=x.label;bd.appendChild(lb);
+  if(x.sub){var sb=document.createElement('span');sb.className='cmd-sub';sb.textContent=x.sub;bd.appendChild(sb)}
+  var bg=document.createElement('span');bg.className='cmd-badge';bg.textContent=x.type.charAt(0).toUpperCase()+x.type.slice(1);
+  a.appendChild(ic);a.appendChild(bd);a.appendChild(bg);
+  return a;
+}
+inp.addEventListener('input',function(){
+  clearTimeout(tmr);
+  var q=inp.value.trim();
+  if(q.length<2){res.hidden=true;res.innerHTML='';quick.hidden=false;spin.style.display='';return}
+  spin.style.display='block';
+  tmr=setTimeout(function(){
+    fetch('<?= base_url('its-search') ?>?q='+encodeURIComponent(q),{credentials:'same-origin'})
+    .then(function(r){return r.json()})
+    .then(function(rows){
+      spin.style.display='';res.innerHTML='';quick.hidden=true;res.hidden=false;
+      if(!rows.length){var em=document.createElement('div');em.className='cmd-empty';em.innerHTML='<i class="bi bi-search cmd-empty-icon"></i>No results for <strong>'+q.replace(/</g,'&lt;')+'</strong>';res.appendChild(em);return}
+      var grp={};rows.forEach(function(x){(grp[x.type]=grp[x.type]||[]).push(x)});
+      Object.keys(grp).forEach(function(type){
+        var sec=document.createElement('div');
+        var lbl=document.createElement('div');lbl.className='cmd-sec-lbl';lbl.textContent=type.charAt(0).toUpperCase()+type.slice(1)+'s';
+        sec.appendChild(lbl);grp[type].forEach(function(x){sec.appendChild(mkItem(x))});res.appendChild(sec);
+      });
+    })
+    .catch(function(){spin.style.display=''});
+  },200);
+});
+})();
 </script>
 <?php } ?>
 <script>

@@ -2,8 +2,11 @@
 # ITSupportz release builder (Mwamiri Computers Limited)
 #
 # Usage (PowerShell, in the project folder):
-#   powershell -ExecutionPolicy Bypass -File .\build-deploy.ps1                       patch bump: 3.5.0 -> 3.5.1
-#   powershell -ExecutionPolicy Bypass -File .\build-deploy.ps1 -Version 3.6.0 -Notes "New feature"
+#   .\build-deploy.ps1                          auto patch bump:  5.3.2 -> 5.3.3
+#   .\build-deploy.ps1 -Bump minor              minor bump:       5.3.2 -> 5.4.0
+#   .\build-deploy.ps1 -Bump major              major bump:       5.3.2 -> 6.0.0
+#   .\build-deploy.ps1 -Version 5.5.0           explicit version (overrides -Bump)
+#   Add -Notes "..." to include release notes in the update manifest.
 #   Add -SkipTests to package without running PHPUnit.
 #
 # Writes two files to dist\ :
@@ -13,11 +16,14 @@
 #   ..\ITSUPPORTZ_SYS\                 only what a live site needs; its .env and writable\ are left alone
 # ============================================================
 param(
-    [string]$Version  = '',
-    [string]$Notes    = '',
+    [string]$Version       = '',
+    [string]$Bump          = '',   # major | minor | patch  (default: patch when Version is blank)
+    [string]$Notes         = '',
     [switch]$SkipTests,
-    [string]$Folder   = '',
-    [switch]$NoFolder
+    [string]$Folder        = '',
+    [switch]$NoFolder,
+    [switch]$IncludeVendor,  # add -IncludeVendor when composer.lock changed
+    [switch]$CompatV35       # add -CompatV35 to produce a package that installs on v3.5 sites
 )
 $ErrorActionPreference = 'Stop'
 $root  = $PSScriptRoot
@@ -28,14 +34,18 @@ $utf8  = New-Object System.Text.UTF8Encoding($false)
 
 $previousVersion = (Get-Content "$root\VERSION" -Raw).Trim()
 if ($Version) {
-    if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be semver: 3.5.0' }
+    if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be semver: 5.4.0' }
 } else {
-    # Auto-bump the patch number: 3.5.0 -> 3.5.1
-    if ($previousVersion -match '^(\d+\.\d+\.)(\d+)$') {
-        $Version = $Matches[1] + ([int]$Matches[2] + 1)
-    } else {
-        throw "Cannot work out the next version after $previousVersion - give it with -Version."
+    if ($previousVersion -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+        throw "Cannot parse current version '$previousVersion'. Use -Version x.y.z explicitly."
     }
+    $maj = [int]$Matches[1]; $min = [int]$Matches[2]; $pat = [int]$Matches[3]
+    $Version = switch ($Bump.ToLower()) {
+        'major' { ($maj + 1).ToString() + '.0.0' }
+        'minor' { "$maj." + ($min + 1) + '.0' }
+        default { "$maj.$min." + ($pat + 1) }   # 'patch' or blank
+    }
+    Write-Host "  Bump: $previousVersion  ->  $Version  ($( if ($Bump) { $Bump } else { 'patch' } ))" -ForegroundColor DarkCyan
 }
 [System.IO.File]::WriteAllText("$root\VERSION", "$Version`n", $utf8)
 Write-Host "Building ITSupportz $Version" -ForegroundColor Cyan
@@ -56,7 +66,7 @@ if ($SkipTests) {
 } elseif (Test-Path "$root\vendor\bin\phpunit") {
     Write-Host '[0/5] Running automated tests...' -ForegroundColor Cyan
     Push-Location $root
-    & $php vendor\bin\phpunit --no-progress
+    & $php vendor\bin\phpunit --no-progress --no-coverage
     $testExit = $LASTEXITCODE
     Pop-Location
     if ($testExit -ne 0) {
@@ -71,28 +81,38 @@ if ($SkipTests) {
 Write-Host '[1/5] Building CSS...' -ForegroundColor Cyan
 & "$root\build-css.ps1"
 
-# 2. Copy to staging
+# 2. Copy only deployment files to staging
 Write-Host '[2/5] Copying project to staging...' -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-$excludeDirs  = @('.git', 'dist', 'tests', 'tools', 'node_modules', 'changelogs', '.vscode', '.idea', 'docs')
-$excludeFiles = @('.env', '*.zip', 'build-deploy.ps1', 'build-css.ps1', 'phpunit.dist.xml', 'phpunit.xml',
-                  '.phpunit.result.cache', 'phpstan.neon', 'tailwind.config.js', 'package.json',
-                  'package-lock.json', 'psalm-autoload.php', 'DEPLOY.md', 'CHANGELOG.md',
-                  'RELEASES.md', 'SECURITY.md', 'itsupport_schema.sql')
-robocopy $root $stage /E /NFL /NDL /NJH /NJS /NP /XD $excludeDirs /XF $excludeFiles | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy failed with code $LASTEXITCODE" }
-
-# 3. Clean writable/ — keep folder structure and protection files only
-Write-Host '[3/5] Cleaning writable/...' -ForegroundColor Cyan
-foreach ($f in 'installed.lock', 'maintenance.flag', 'integrity.json') {
-    Remove-Item "$stage\writable\$f" -Force -ErrorAction SilentlyContinue
+$excludeFiles = @('.env', '.env.*', '*.zip', '*.bak', '*.log')
+foreach ($dir in 'app', 'public', 'system', 'vendor') {
+    $source = Join-Path $root $dir
+    if (-not (Test-Path $source -PathType Container)) { throw "Required release directory missing: $source" }
+    $destination = Join-Path $stage $dir
+    robocopy $source $destination /E /NFL /NDL /NJH /NJS /NP /XD "$root\public\uploads" /XF $excludeFiles | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed for $dir with code $LASTEXITCODE" }
 }
-foreach ($sub in 'cache', 'logs', 'session', 'uploads', 'backups', 'debugbar', 'updates') {
+foreach ($file in '.htaccess', 'VERSION', 'composer.json', 'composer.lock', 'spark', 'preload.php', 'env', 'LICENSE', 'itsupport_schema.sql', 'INSTALL.txt') {
+    $source = Join-Path $root $file
+    if (-not (Test-Path $source -PathType Leaf)) { throw "Required release file missing: $source" }
+    Copy-Item -LiteralPath $source -Destination $stage
+}
+New-Item -ItemType Directory -Force -Path "$stage\public\uploads" | Out-Null
+Copy-Item -LiteralPath "$root\public\uploads\.htaccess" -Destination "$stage\public\uploads\.htaccess"
+foreach ($sub in 'clients', 'signatures', 'photos', 'branding', 'extensions') {
+    New-Item -ItemType Directory -Force -Path "$stage\public\uploads\$sub" | Out-Null
+}
+
+# 3. Create empty writable directories without copying local data
+Write-Host '[3/5] Preparing writable/...' -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path "$stage\writable" | Out-Null
+Copy-Item -LiteralPath "$root\writable\.htaccess" -Destination "$stage\writable\.htaccess"
+Copy-Item -LiteralPath "$root\writable\index.html" -Destination "$stage\writable\index.html"
+foreach ($sub in 'cache', 'logs', 'session', 'uploads', 'backups', 'debugbar', 'updates', 'extensions', 'releases') {
     $dir = Join-Path $stage "writable\$sub"
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    Get-ChildItem $dir -Force | Where-Object { $_.Name -notin @('index.html', '.htaccess') } | Remove-Item -Recurse -Force
 }
-foreach ($sub in 'uploads', 'backups', 'updates') {
+foreach ($sub in 'uploads', 'backups', 'updates', 'extensions', 'releases') {
     [System.IO.File]::WriteAllText("$stage\writable\$sub\.htaccess", "Require all denied`n", $utf8)
 }
 
@@ -123,17 +143,32 @@ Remove-Item $install, $update -Force -ErrorAction SilentlyContinue
 tar.exe -a -c -f $install -C $stage .
 if ($LASTEXITCODE -ne 0) { throw 'tar failed (install package)' }
 
-# Update package: only what an update touches
+# Strip public/uploads/ from stage before building update — updates must never touch user files
+Remove-Item "$stage\public\uploads" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Update package: only what an update touches (vendor excluded by default — ~36 MB saved)
 $updateManifest = @{
-    version   = $Version
-    min_php   = '8.2.0'
-    built     = (Get-Date -Format 's')
-    notes     = $Notes
-    remove    = @()
+    version        = $Version
+    min_php        = '8.2.0'
+    built          = (Get-Date -Format 's')
+    notes          = $Notes
+    remove         = @()
+    vendor_bundled = [bool]$IncludeVendor
 } | ConvertTo-Json
 [System.IO.File]::WriteAllText("$stage\update.json", $updateManifest, $utf8)
-$updateItems = @('update.json', 'app', 'public', 'system', 'vendor', 'VERSION', 'composer.json', 'composer.lock', 'spark', 'preload.php', '.htaccess') |
-    Where-Object { Test-Path (Join-Path $stage $_) }
+
+if ($CompatV35) {
+    # v3.5 allowedPath() only accepts: app/ public/ system/ composer.json spark VERSION
+    # composer.lock, preload.php, .htaccess are rejected by the old code.
+    # Admin must record an integrity baseline on their v3.5 site before uploading this package.
+    $coreItems = @('update.json', 'app', 'public', 'system', 'VERSION', 'composer.json', 'spark')
+    $update = $update -replace '\.zip$', '-compat35.zip'
+    Write-Host '  [v3.5-compatible package — admin must record baseline first]' -ForegroundColor Yellow
+} else {
+    $coreItems = @('update.json', 'app', 'public', 'system', 'VERSION', 'composer.json', 'composer.lock', 'spark', 'preload.php', '.htaccess')
+}
+if ($IncludeVendor) { $coreItems += 'vendor'; Write-Host '  [vendor included — package will be large]' -ForegroundColor Yellow }
+$updateItems = $coreItems | Where-Object { Test-Path (Join-Path $stage $_) }
 tar.exe -a -c -f $update -C $stage @updateItems
 if ($LASTEXITCODE -ne 0) { throw 'tar failed (update package)' }
 
@@ -155,11 +190,17 @@ Deploy a NEW site:
   1. Extract itsupportz_install_*.zip on the server.
   2. Point the domain's Document Root to the public/ folder.
   3. Create a MySQL database and fill in .env (copy env to .env, edit).
-  4. Open the site - the installer runs once, then locks itself.
+  4. Follow INSTALL.txt to import the schema and run protected browser setup.
 
-UPDATE an existing site:
+UPDATE an existing site (v4.x):
   System > Updates > upload itsupportz_update_*.zip > Install update.
   Host manifest.json + the update zip at a stable URL and set it in System > Updates.
+
+UPGRADE from v3.5:
+  1. On the v3.5 site: System > Updates > Integrity > Record baseline.
+  2. Build:  .\build-deploy.ps1 -CompatV35
+  3. Upload itsupportz_update_*-compat35.zip and install.
+  Note: composer.lock, preload.php and .htaccess are excluded (not supported by v3.5).
 '@ -ForegroundColor Gray
 
 exit 0

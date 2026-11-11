@@ -81,6 +81,7 @@ class ItsSite extends ItsBase
             'hero_cta_url' => $hero['button_url'] ?? null, 'hero_image' => ($hero['image'] ?? '') ?: null,
         ];
         if ($this->db->fieldExists('blocks', 'site_pages')) $row['blocks'] = json_encode($blocks, JSON_UNESCAPED_UNICODE);
+        if ($this->db->fieldExists('robots', 'site_pages')) $row['robots'] = in_array($this->request->getPost('robots'), ['index', 'noindex'], true) ? $this->request->getPost('robots') : '';
         return $row;
     }
 

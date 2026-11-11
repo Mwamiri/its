@@ -340,11 +340,16 @@ class Site
             }
         }
 
-        // Attach sorted children to each top-level item
+        // Attach sorted children up to 3 levels deep
         usort($top, fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
         foreach ($top as &$item) {
             $item['children'] = $childMap[$item['slug']] ?? [];
             usort($item['children'], fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
+            foreach ($item['children'] as &$child) {
+                $child['children'] = $childMap[$child['slug']] ?? [];
+                usort($child['children'], fn($a, $b) => ((int) $a['menu_order']) <=> ((int) $b['menu_order']));
+            }
+            unset($child);
         }
         unset($item);
         return $top;

@@ -10,7 +10,7 @@ class ItsUpdates extends ItsBase {
         $this->autoCheck($u);
         return view('itsupport/updates', [
             'title' => 'Updates', 'version' => $u->version(), 'frameworkVersion' => \CodeIgniter\CodeIgniter::CI_VERSION,
-            'integrity' => $u->verify(), 'backups' => $u->backups(), 'system' => $this->systemInfo(), 'log' => $u->readLog(), 'auto' => SettingModel::get('update_auto_check', '0') === '1',
+            'integrity' => $u->verifyMeta(), 'backups' => $u->backups(), 'system' => $this->systemInfo(), 'log' => $u->readLog(), 'auto' => SettingModel::get('update_auto_check', '0') === '1',
             'last' => json_decode((string) SettingModel::get('update_last_check', ''), true),
             'manifestUrl' => SettingModel::get('update_manifest_url', ''),
             'releaseNotes' => (new \Config\ReleaseNotes())->releases[$u->version()] ?? null,
@@ -47,6 +47,7 @@ class ItsUpdates extends ItsBase {
         if (!$pkg['newer'] && $this->request->getPost('allow_same') !== '1') return $this->back('err', "Package version {$pkg['version']} is not newer than the installed " . $u->version() . '. Tick "reinstall" to apply it anyway.');
         if ($pkg['type'] === 'major' && trim((string) $this->request->getPost('confirm')) !== 'UPDATE MAJOR') return $this->back('err', 'This is a major update. Type UPDATE MAJOR to confirm.');
         $u->log("Installing {$pkg['version']} from the updates folder ($name) by " . ($this->user()['username'] ?? 'admin'));
+        session_write_close();
         $tmp = null;
         try {
             $zip = $pkg['kind'] === 'folder' ? ($tmp = $u->folderToZip($path)) : $path;
@@ -58,7 +59,9 @@ class ItsUpdates extends ItsBase {
             if ($tmp) @unlink($tmp);
         }
         $this->audit('update_installed', 'updates', $pkg['version'] . ' from folder (' . $res['files'] . ' files)');
-        return $this->back('ok', "Updated to {$pkg['version']} ({$res['files']} files). Backups: {$res['codeBackup']}, {$res['dbBackup']}. You can delete the package from the folder now.");
+        $msg = "Updated to {$pkg['version']} ({$res['files']} files). Backups: {$res['codeBackup']}, {$res['dbBackup']}. You can delete the package from the folder now.";
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'msg' => $msg]);
+        return $this->back('ok', $msg);
     }
 
     public function folderDelete() {
@@ -127,6 +130,72 @@ class ItsUpdates extends ItsBase {
         $this->audit('update_log_cleared', 'updates');
         return $this->back('ok', 'Update log cleared.');
     }
+
+    /** Polled by JS every 500ms during install/backup/integrity operations. */
+    public function progress() {
+        if ($r = $this->needAdmin()) return $r;
+        // Release the session file lock immediately so the long-running install
+        // request (which holds the same session) does not block polls.
+        session_write_close();
+        return $this->response->setJSON((new SystemUpdater())->getProgress());
+    }
+
+    /** Restore all files from a code backup archive (creates a safety backup of current state first). */
+    public function restore() {
+        if ($r = $this->needAdmin()) return $r;
+        $u = new SystemUpdater();
+        $name = (string) $this->request->getPost('backup');
+        $p = $u->backupPath($name);
+        if (!$p || !str_starts_with($name, 'code-')) {
+            if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => false, 'msg' => 'Choose a code backup to restore from.']);
+            return $this->back('err', 'Choose a code backup to restore from.');
+        }
+        session_write_close();
+        $u->setProgress(5, 'Creating safety backup of current state…', 'backup');
+        try {
+            $newCode = $u->createCodeBackup('pre-restore');
+            $u->setProgress(22, 'Creating database safety backup…', 'db-backup');
+            $newDb   = $u->createDbBackup($this->db);
+        } catch (\Throwable $e) {
+            $u->setProgress(0, 'Safety backup failed: ' . $e->getMessage(), 'error');
+            if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => false, 'msg' => 'Safety backup failed: ' . $e->getMessage()]);
+            return $this->back('err', 'Could not create safety backup: ' . $e->getMessage());
+        }
+        $u->setProgress(30, 'Restoring files from ' . $name . '…', 'restore');
+        $u->maintenance(true);
+        try {
+            $done = $u->restoreFromZip($p);
+        } catch (\Throwable $e) {
+            $u->maintenance(false);
+            $u->setProgress(0, 'Restore failed: ' . $e->getMessage(), 'error');
+            if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => false, 'msg' => 'Restore failed: ' . $e->getMessage()]);
+            return $this->back('err', 'Restore failed: ' . $e->getMessage());
+        }
+        $u->maintenance(false);
+        $u->setProgress(92, 'Updating integrity baseline…', 'baseline');
+        $u->recordBaseline();
+        $u->setProgress(100, 'Restore complete — ' . count($done) . ' files restored.', 'done');
+        $u->log('Restored ' . count($done) . ' files from ' . $name . '. Safety backup: ' . $newCode . ', ' . $newDb);
+        $this->audit('restore', 'updates', $name . ' (' . count($done) . ' files)');
+        $msg = 'Restored ' . count($done) . ' files from ' . $name . '. '
+             . 'Current state was backed up as ' . $newCode . ' and ' . $newDb . '. '
+             . 'Note: database schema was not changed — run migrations manually if needed.';
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'msg' => $msg]);
+        return $this->back('ok', $msg);
+    }
+
+    /** Runs the integrity check with progress reporting (XHR-driven). */
+    public function integrityCheck() {
+        if ($r = $this->needAdmin()) return $r;
+        $u = new SystemUpdater();
+        session_write_close();
+        $u->setProgress(1, 'Starting integrity check…', 'verify');
+        $v = $u->verify(true);
+        $this->audit('integrity_check', 'updates', $v['checked'] . ' files, ' . ($v['ok'] ? 'clean' : 'problems found'));
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'result' => $v]);
+        return $this->back($v['ok'] ? 'ok' : 'err', ($v['ok'] ? 'Integrity is clean' : 'Problems found') . ' — ' . $v['checked'] . ' files checked.');
+    }
+
     public function upload() {
         if ($r = $this->needAdmin()) return $r;
         $u = new SystemUpdater();
@@ -148,10 +217,13 @@ class ItsUpdates extends ItsBase {
         $type = SystemUpdater::classify($cur, $ver);
         if ($type === 'major' && trim((string) $this->request->getPost('confirm')) !== 'UPDATE MAJOR') return $this->back('err', 'Type UPDATE MAJOR to confirm a major update.');
         $u->log("Uploaded $kind package " . $file->getClientName() . " ($ver) by " . ($this->user()['username'] ?? 'admin'));
+        session_write_close();
         try { $res = $u->applyPackage($file->getTempName(), $sha, $ver, $this->db, $kind); }
         catch (\Throwable $e) { $u->log('Upload update failed: ' . $e->getMessage()); $this->audit('update_failed', 'updates', $e->getMessage()); return $this->back('err', $e->getMessage()); }
         $this->audit('update_uploaded', 'updates', "$kind $ver (" . $res['files'] . ' files)');
-        return $this->back('ok', ucfirst($kind) . " updated to $ver ({$res['files']} files). Backups: {$res['codeBackup']}, {$res['dbBackup']}.");
+        $msg = ucfirst($kind) . " updated to $ver ({$res['files']} files). Backups: {$res['codeBackup']}, {$res['dbBackup']}.";
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'msg' => $msg]);
+        return $this->back('ok', $msg);
     }
     public function check() {
         if ($r = $this->needAdmin()) return $r;
@@ -169,11 +241,14 @@ class ItsUpdates extends ItsBase {
     public function backupNow() {
         if ($r = $this->needAdmin()) return $r;
         $u = new SystemUpdater();
+        session_write_close();
         try { $c = $u->createCodeBackup('manual'); $d = $u->createDbBackup($this->db); }
         catch (\Throwable $e) { return $this->back('err', 'Backup failed: ' . $e->getMessage()); }
         $u->log("Manual backup: $c, $d");
         $this->audit('server_backup', 'updates', $c . ', ' . $d);
-        return $this->back('ok', "Created $c and $d.");
+        $msg = "Created $c and $d.";
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'msg' => $msg]);
+        return $this->back('ok', $msg);
     }
     public function heal() {
         if ($r = $this->needAdmin()) return $r;
@@ -201,10 +276,13 @@ class ItsUpdates extends ItsBase {
         if (!$app || empty($app['available'])) return $this->back('err', 'Run an update check first; no update is available.');
         if ($app['type'] === 'major' && trim((string) $this->request->getPost('confirm')) !== 'UPDATE MAJOR') return $this->back('err', 'Type UPDATE MAJOR to confirm a major update.');
         if (trim((string) $this->request->getPost('version')) !== $app['version']) return $this->back('err', 'Version mismatch; run the check again.');
+        session_write_close();
         try { $res = (new SystemUpdater())->applyOnline($app, $this->db); }
         catch (\Throwable $e) { $this->audit('update_failed', 'updates', $e->getMessage()); return $this->back('err', $e->getMessage()); }
         SettingModel::put('update_last_check', '');
         $this->audit('update_applied', 'updates', $app['version'] . ' (' . $res['files'] . ' files)');
-        return $this->back('ok', "Updated to {$app['version']}. Backups: {$res['codeBackup']}, {$res['dbBackup']}.");
+        $msg = "Updated to {$app['version']}. Backups: {$res['codeBackup']}, {$res['dbBackup']}.";
+        if ($this->request->isAJAX()) return $this->response->setJSON(['ok' => true, 'msg' => $msg]);
+        return $this->back('ok', $msg);
     }
 }

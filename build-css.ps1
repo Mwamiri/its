@@ -19,5 +19,8 @@ if (-not (Test-Path $cli)) { throw 'Tailwind CSS CLI not found after npm install
 $twArgs = @('-i', "$root\assets\tailwind.css", '-o', "$root\public\assets\tailwind.css")
 if ($Watch) { $twArgs += '--watch' } else { $twArgs += '--minify' }
 Push-Location $root
-try { & $cli @twArgs } finally { Pop-Location }
+# Tailwind v4 writes its banner to stderr; temporarily relax error preference so
+# PowerShell 5.1 doesn't treat that stderr output as a terminating error.
+$prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+try { & $cli @twArgs } finally { Pop-Location; $ErrorActionPreference = $prev }
 if ($LASTEXITCODE -ne 0) { throw 'Tailwind build failed' }

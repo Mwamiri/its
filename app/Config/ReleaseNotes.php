@@ -10,6 +10,258 @@ namespace Config;
 class ReleaseNotes
 {
     public array $releases = [
+        '5.3.6' => [
+            'date'  => '2026-11-11',
+            'title' => 'Protected fresh-install setup',
+            'items' => [
+                ['fix', 'Fresh install packages include the base schema and a secret-protected browser setup for cPanel installations.'],
+                ['fix', 'Fresh install packages include empty upload directories without bundling existing uploads.'],
+            ],
+        ],
+        '5.3.5' => [
+            'date'  => '2026-11-11',
+            'title' => 'Clean release packaging',
+            'items' => [
+                ['fix', 'Release packages no longer include local writable data, uploaded files, environment backups, or unrelated project folders.'],
+            ],
+        ],
+        '5.3.3' => [
+            'date'  => '2026-10-19',
+            'title' => 'Phase 1: Bulk actions, watchers, merge, CSAT surveys, SSL monitoring',
+            'items' => [
+                ['feature', 'Bulk actions on ticket list: select multiple tickets and close, mark completed, reassign, or change priority in one click. Sticky selection bar appears when tickets are checked.'],
+                ['feature', 'Ticket watchers: staff can watch any ticket and receive email notifications on every public update, without being the assigned technician.'],
+                ['feature', 'Merge tickets: move all updates, tasks and time entries from one ticket into another with one click; the source ticket is closed automatically.'],
+                ['feature', 'CSAT survey: when a ticket is marked completed or closed, the client automatically receives a star-rating email. Ratings appear on the ticket and in reports. On/off toggle in Admin → Settings.'],
+                ['feature', 'SSL & domain monitoring panel in System → Health: add any domain, see SSL certificate days remaining, get a warning notification when a cert expires within 30 days.'],
+                ['feature', 'Easier release builds: build-deploy.ps1 now accepts -Bump major|minor|patch in place of typing the full version number. Shows "Bump: 5.3.2 → 5.3.3 (patch)" on run.'],
+                ['feature', 'Major-update confirmation in System → Updates replaced "Type UPDATE MAJOR" text input with a proper modal dialog; upload form advanced fields (SHA-256, allow reinstall) collapsed under an expandable section.'],
+            ],
+        ],
+        '5.3.2' => [
+            'date'  => '2026-10-19',
+            'title' => 'Security hardening — headers, 2FA for all staff, magic bytes, audit log',
+            'items' => [
+                ['security', 'HTTP security headers: HSTS (max-age 1 year, includeSubDomains on HTTPS), Content-Security-Policy frame-ancestors \'none\' (stronger clickjacking protection), Permissions-Policy blocking camera/microphone/geolocation/payment/USB, Cross-Origin-Opener-Policy and Cross-Origin-Resource-Policy.'],
+                ['security', '2FA enforcement extended to all staff roles (tech, manager). New admin toggle: "Require two-factor authentication for all staff" — staff without 2FA are redirected to their security page until they set it up.'],
+                ['security', 'Extension ZIP upload now validates magic bytes (PK\\x03\\x04) in addition to MIME type. A file with a renamed .zip extension but wrong file header is rejected before it reaches the server.'],
+                ['security', 'Extension screenshot upload validates image magic bytes for JPEG (FFD8FF), PNG (89504E47), GIF (GIF8) and WebP (RIFF) — prevents image/script polyglot uploads.'],
+                ['security', 'Audit log now records mail settings changes (method, host) and security policy changes (session timeout, 2FA toggles, IP lists) in the database audit trail, not only in the customisation log.'],
+                ['feature', 'RateLimit library added (app/Libraries/RateLimit.php) for reusable IP/key-based rate limiting backed by CI4 cache.'],
+            ],
+        ],
+        '5.3.1' => [
+            'date'  => '2026-10-19',
+            'title' => 'Extension marketplace — right-click and drag protection',
+            'items' => [
+                ['feature', 'Extension cards and screenshots block right-click context menus, preventing URL inspection of download links and easy saving of preview images.'],
+                ['feature', 'Screenshot images have draggable=false and dragstart blocked so they cannot be dragged out of the browser.'],
+                ['feature', 'Download links additionally suppress their own contextmenu event so the direct URL cannot be copied via right-click → Copy link address.'],
+                ['feature', 'CSS user-select:none and -webkit-touch-callout:none applied to extension screenshots for mobile long-press protection.'],
+            ],
+        ],
+        '5.3.0' => [
+            'date'  => '2026-10-19',
+            'title' => 'Public website — slider, gallery lightbox, scroll animations, and advanced UI',
+            'items' => [
+                ['feature', 'Slider block is now fully functional with CSS transitions, prev/next buttons, dot indicators, and touch/swipe support for mobile.'],
+                ['feature', 'Gallery block image lightbox: click any gallery image to open full-screen with keyboard navigation (ArrowLeft/Right/Escape), counter, and caption. Pure JS — no external library.'],
+                ['feature', 'Scroll-reveal animations: cards, stats, FAQ items, counters, and section headings fade up into view as they enter the viewport using IntersectionObserver.'],
+                ['feature', 'Stats counter animation: numbers in stat and counter blocks count up from zero when they scroll into view, with smooth easing.'],
+                ['feature', 'Back-to-top button appears after scrolling 500px — rounded pill anchored above the WhatsApp button.'],
+                ['feature', 'Mobile nav overlay: opening the nav on small screens now dims the page behind it with a backdrop blur, and tapping the overlay or pressing Escape closes the menu.'],
+                ['feature', 'Hero ambient glow: a slow-moving radial gradient in the brand accent colour animates behind the hero content.'],
+                ['feature', 'Marquee (partner logos) gets the correct CSS animation, edge fade mask, and pause-on-hover.'],
+                ['feature', 'Gallery, video, and counters blocks get proper CSS for layout, hover effects, and counter number display.'],
+            ],
+        ],
+        '5.2.3' => [
+            'date'  => '2026-10-19',
+            'title' => 'Fail-safe redundancy — health dashboard, crash protection, auto-recovery',
+            'items' => [
+                ['feature', 'System Health page rebuilt as a proper status dashboard: 5 sections (Server, Storage, Database, Mail, Security), 20+ checks, overall pass/fail count, and a Fix → link on every failed check that goes directly to the remedy.'],
+                ['feature', 'New health checks: mail configuration validity (SMTP host and from address), per-directory writable status (cache/, session/, logs/, uploads/, extensions/), required database tables, missing extension ZIP files on disk, and today\'s error/critical log entry count.'],
+                ['feature', 'Auto-create missing writable subdirectories on health page load — prevents hard crashes when a directory was accidentally deleted.'],
+                ['feature', 'Dashboard alert strip now warns when disk space falls below 15%, and flags missing database tables with a link to run migrations.'],
+                ['fix', 'Dashboard crash protection: dashboardStats() is now wrapped in a top-level try/catch — a single failing query returns "?" for that metric instead of crashing the whole page.'],
+            ],
+        ],
+        '5.2.2' => [
+            'date'  => '2026-10-19',
+            'title' => 'Extensions page modal freeze fix',
+            'items' => [
+                ['fix', 'Extensions page froze on load with all three modals (Upload, Changelog, Reject) visible simultaneously. All had hidden attribute plus inline display:flex — the inline style won, forcing all three open at once. Fixed with a CSS not([hidden]) rule.'],
+            ],
+        ],
+        '5.2.1' => [
+            'date'  => '2026-10-19',
+            'title' => 'Premium command palette, extension download chart',
+            'items' => [
+                ['feature', 'Global search upgraded to a full command palette (Ctrl+K or click the search bar). Includes a quick navigation panel with 9 shortcuts when idle, grouped results with icons and subtitles when searching, keyboard navigation (↑↓ Enter Esc), and a loading spinner. Now also searches extensions.'],
+                ['feature', 'Extension Portal admin view shows a two-panel analytics row: top downloaded extensions (horizontal bar chart) and extension count per platform. Only visible to admins and managers.'],
+            ],
+        ],
+        '5.2.0' => [
+            'date'  => '2026-10-19',
+            'title' => 'Dashboard alert strip, pinned shortcuts, and SMTP cPanel guide',
+            'items' => [
+                ['feature', 'Dashboard alert strip: automatically surfaces important conditions that need attention — failed logins in the last 24 hours, unconfigured SMTP, the last email delivery failure, and pending extension subscription requests.'],
+                ['feature', 'Pinned shortcuts: any staff member can pin up to 13 modules (Tickets, Clients, Extensions, Sign-ins, Updates, etc.) as quick-access cards at the top of the dashboard. Persisted per user. Managed via the Customize panel.'],
+                ['feature', 'cPanel SMTP quick-fill guide on the Admin → Mail settings tab: typical host/port/security settings for cPanel, auto-fill buttons for SSL (465) and TLS (587), and an SSL certificate bypass option for shared-hosting environments with self-signed certificates.'],
+                ['fix', 'SMTP test now reports the actual failure reason from the PHPMailer debugger instead of a generic "Send failed" message.'],
+            ],
+        ],
+        '5.0.0' => [
+            'date'  => '2026-10-17',
+            'title' => 'v5 — Extension Marketplace with subscriptions, Products showcase and 7 platforms',
+            'items' => [
+                ['feature', 'Extension Marketplace is now subscription-gated: browsing is free; downloading requires a valid subscription key.'],
+                ['feature', 'Subscription management at /its-ext-subscriptions — admin creates subscribers directly with auto-generated download keys, or approves self-service requests from the public marketplace.'],
+                ['feature', 'Access packages define scope: All extensions, Specific platforms, or Specific extension IDs. Six default packages seeded.'],
+                ['feature', 'Public "Get Access" form on the extensions marketplace — developers and organisations self-register; admin approves and key is emailed automatically.'],
+                ['feature', 'Products showcase page at /products — presents all six software products (Churchz, UMI, HR Suite, HMISOZ, KKSports, JasemlZ) with feature lists, interactive UI mockups and Get-a-Quote CTAs.'],
+                ['feature', 'JasemlZ (academic journal management system — submissions, peer review, OAI-PMH) added as a platform in the extension marketplace.'],
+                ['feature', 'KKSports (sports league & tournament management) added as a platform in the extension marketplace.'],
+                ['change', 'Platform ENUM now has 7 values: churchz, umi, hr, hmisoz, jasemlz, kksports, other.'],
+                ['change', 'Products and Extensions links added to the public website navigation on all public pages (CMS pages, extensions page, products page).'],
+                ['change', 'Subscriptions item added under System in the staff sidebar navigation.'],
+            ],
+        ],
+        '4.2.11' => [
+            'date'  => '2026-10-17',
+            'title' => 'Subscription-gated downloads, products showcase and JasemlZ',
+            'items' => [
+                ['feature', 'Extension downloads are now subscription-gated: browsing is free, downloading requires a valid subscription key. Key is checked on every download.'],
+                ['feature', 'Admin subscription management at /its-ext-subscriptions: create subscribers directly with auto-generated keys, approve self-service requests, manage access packages.'],
+                ['feature', 'Access packages define scope: All, Platforms (e.g. churchz,umi), or specific extension IDs.'],
+                ['feature', 'Public "Get Access" form on the marketplace lets external developers/organisations self-register; admin approves and key is emailed automatically.'],
+                ['feature', 'Public products showcase page at /products — covers Churchz, UMI, HR Suite, HMISOZ, KKSports and JasemlZ with mockup UIs and get-a-quote CTAs.'],
+                ['feature', 'JasemlZ (academic journal management system) added to the extension marketplace platform list and products page.'],
+                ['change', 'Products and Extensions links added to the public website navigation menu on all public pages.'],
+                ['change', '"Subscriptions" item added under System in the staff nav sidebar.'],
+            ],
+        ],
+        '4.2.9' => [
+            'date'  => '2026-10-17',
+            'title' => 'Full extension catalogue — 17 extensions across 5 platforms',
+            'items' => [
+                ['feature', 'Two new platforms added: HR Suite and HMISOZ, alongside Churchz, UMI and Other.'],
+                ['feature', 'Churchz: 4 extensions — Facility Bookings, Prayer Requests, Extra Registers (First Holy Communion & Funerals), Mass Intentions.'],
+                ['feature', 'UMI: 9 extensions — Analytics & Reports, CRM & Sales, Employees & HR, Expenses, Inventory & Stock, Invoicing & M-Pesa, Payroll Kenya, Rentals & Property, SMS Marketing.'],
+                ['feature', 'HR Suite: 3 extensions — Device Management Hub, Payroll Engine, Training & Events.'],
+                ['feature', 'HMISOZ: 1 extension — SMS Notification.'],
+                ['change', 'Platform filter tabs on staff portal and public marketplace now show all 5 platforms.'],
+            ],
+        ],
+        '4.2.7' => [
+            'date'  => '2026-10-17',
+            'title' => 'Central extension repository — JSON API for UMI, Churchz and other systems',
+            'items' => [
+                ['feature', 'Public JSON API at /extensions-api — returns approved extensions as JSON, optionally filtered by platform (?platform=umi / churchz / other). Used by UMI, Churchz and any other system to pull extensions centrally.'],
+                ['feature', 'CORS header (Access-Control-Allow-Origin: *) and 5-minute Cache-Control on the API response for efficient remote fetching.'],
+                ['change', 'UMI\'s Marketplace library now fetches from this API and merges with its local extensions (local takes precedence); cached for 5 minutes in writable/.'],
+                ['change', 'UMI download endpoint redirects to ITSupportz for remote extensions; local extensions continue to be served directly.'],
+            ],
+        ],
+        '4.2.5' => [
+            'date'  => '2026-10-17',
+            'title' => 'Extension upload form — screenshot, changelog, tags, license and min version',
+            'items' => [
+                ['feature', 'Extension upload form: screenshot / banner image upload (PNG, JPG, GIF, WebP up to 2 MB) — shown as a card cover on both the staff portal and the public marketplace.'],
+                ['feature', 'Changelog field on upload form — staff can describe what changed in this version; displayed in a modal popup on each card.'],
+                ['feature', 'Tags field (comma-separated) — up to 5 tags displayed as chips on each card for easier browsing.'],
+                ['feature', 'License selector (MIT, GPL v2, GPL v3, Apache 2.0, Commercial, Proprietary, Other) — shown as a badge on every card.'],
+                ['feature', 'Minimum platform version field — e.g. "Churchz 2.1+" displayed in the card footer.'],
+                ['feature', 'Live screenshot preview in the upload modal when an image file is selected.'],
+                ['change', 'Extension cards redesigned with screenshot banner at top, icon, tags, license and docs button.'],
+            ],
+        ],
+        '4.2.3' => [
+            'date'  => '2026-10-17',
+            'title' => 'Public extension marketplace at /extensions',
+            'items' => [
+                ['feature', 'Public extension marketplace available at /extensions — browse and download approved plugins, themes, add-ons and integrations without logging in.'],
+                ['feature', 'Platform tabs (All · Churchz · UMI · Other) with live counts and client-side search filter.'],
+                ['feature', 'Public download endpoint (/extensions-download/{id}) serves approved extensions only; download counter incremented on each download.'],
+                ['feature', '"Submit an extension" banner links to staff login for authenticated uploads.'],
+                ['change', 'Extension page styled with the site\'s public theme (colours, fonts, header and footer) for a seamless on-site experience.'],
+            ],
+        ],
+        '4.2.2' => [
+            'date'  => '2026-10-17',
+            'title' => 'Bug fixes — robots column, session lock on progress bar',
+            'items' => [
+                ['fix', 'Added missing robots column to site_pages table; per-page noindex setting now saves and renders correctly.'],
+                ['fix', 'Website page editor now saves the robots setting (index / noindex) when the column exists.'],
+                ['fix', 'Update progress bar stuck at 0%: session lock released before long-running install, backup, restore and integrity-check operations so the polling endpoint can respond in real time.'],
+            ],
+        ],
+        '4.2.1' => [
+            'date'  => '2026-10-17',
+            'title' => 'Fix update progress bar stuck at 0% (session lock)',
+            'items' => [
+                ['fix', 'Update progress bar stuck at 0%: session lock released before long-running install, backup, restore and integrity-check operations so the polling endpoint can respond in real time.'],
+            ],
+        ],
+        '4.2.0' => [
+            'date'  => '2026-10-17',
+            'title' => 'Extension Manager Portal — upload and share plugins, themes and add-ons for Churchz, UMI and more',
+            'items' => [
+                ['feature', 'Extension portal (System → Extensions): a structured marketplace for uploading, reviewing and downloading extensions grouped by platform — Churchz, UMI, or Other.'],
+                ['feature', 'Four extension types: Plugin, Theme, Add-on and Integration, each with its own colour-coded icon.'],
+                ['feature', 'Any staff member can upload an extension (ZIP, up to 30 MB) with name, version, platform, type, description, author and homepage link.'],
+                ['feature', 'Upload moderation: submissions from technicians land in a Pending queue; admins and managers approve or reject with an optional rejection reason; their own uploads are auto-approved.'],
+                ['feature', 'Download counter: each download increments the extension\'s counter, visible on every card.'],
+                ['feature', 'Platform filter tabs (Churchz · UMI · Other) with per-tab counts; pending and rejected entries are only visible to admins and managers.'],
+                ['feature', 'Extension files are stored in writable/extensions/ (outside the web root) and served through the controller, preventing direct access.'],
+                ['change', 'Extensions link added to System navigation group, visible to all staff roles.'],
+            ],
+        ],
+        '4.1.0' => [
+            'date'  => '2026-10-11',
+            'title' => 'Update installer — progress bars, auto-backup display, restore from backup',
+            'items' => [
+                ['feature', 'Update installer now shows a live progress bar with step-by-step status during upload, package extraction, database backup, migrations, health check and baseline recording.'],
+                ['feature', 'File upload uses XHR with a real-time upload percentage indicator (0–28% = upload, 28–100% = server-side install stages).'],
+                ['feature', 'Restore to previous version: any code backup in the backups list can now be restored in one click — a safety backup of the current state is created first, then all code files are replaced from the selected archive.'],
+                ['feature', 'Integrity check can now be run on demand from the Integrity card without a full page reload; progress is shown in the same modal.'],
+                ['change', 'Backups table now shows the version number and label (auto/manual/pre-restore) extracted from the backup filename.'],
+            ],
+        ],
+        '4.0.7' => [
+            'date'  => '2026-10-11',
+            'title' => 'Footer layout fixes — email links, button visibility, tablet layout',
+            'items' => [
+                ['fix', 'Public footer: email addresses now render as working mailto links (the JavaScript email-decode script was missing from the page).'],
+                ['fix', 'Public footer "Get a quote" button is now visible on dark/brand footer backgrounds (was dark blue on near-black — invisible).'],
+                ['fix', 'Footer grid now switches to 2-column layout at 960px (was 720px), preventing the About column from collapsing to ~86px on iPads and small laptops.'],
+                ['fix', 'Footer About column given a 200px minimum width so long company names and taglines cannot be squeezed out by section columns.'],
+            ],
+        ],
+        '4.0.6' => [
+            'date'  => '2026-10-11',
+            'title' => 'Bug fixes — sign-in history, security settings, public footer',
+            'items' => [
+                ['feature', 'Sign-in history (System → Sign-ins) now shows both successful and failed logins via the new login_history table — previously only failed attempts were visible.'],
+                ['fix', 'Security tab: saving session settings no longer clears the IP allow/block lists (Form 1 was silently overwriting ip_allow/ip_block with empty strings).'],
+                ['fix', 'Public website footer "Submit a request" button now links correctly to the Support page instead of the POST-only support-request handler (which returned 404 on GET).'],
+                ['fix', 'Sign-in activity view: removed invalid $this->request->getGet() calls in the view layer (controller property not available in views); search and pagination now work correctly.'],
+            ],
+        ],
+        '4.0.5' => [
+            'date'  => '2026-10-11',
+            'title' => 'Administration overhaul — CHURCHZ P Edition admin features',
+            'items' => [
+                ['feature', 'User edit and delete: every user can now be fully edited (name, email, role, client link, active/disabled status, password reset) and deleted from Admin → Users.'],
+                ['feature', 'Mail settings form: configure sender address, sender name, mail protocol (SMTP / server mail / test mode) and full SMTP credentials (host, port, security, username, password) from Admin → Mail — no more .env editing.'],
+                ['feature', 'Admin → Security tab: set session idle timeout (minutes), toggle the require-2FA-for-administrators policy, and set IP address allow/block lists without touching config files.'],
+                ['feature', 'Audit log CSV export: download the full audit trail as a spreadsheet from Admin → Audit.'],
+                ['feature', 'Error log viewer (System → Error Logs): browse log files by date, filter by level (ERROR, WARNING, INFO, DEBUG), download a single file or clear old logs.'],
+                ['feature', 'Sign-in activity page (System → Sign-ins): paginated table of every sign-in attempt with username, IP address and timestamp; search by username or IP; top-IP summary.'],
+                ['feature', 'System cleanup page (System → Cleanup): scan and selectively delete cache files, orphaned session files, old log files, debug output and leftover update packages.'],
+                ['change', 'Admin → Users now shows a full table with Edit and Delete buttons; user role badges and active/locked status are colour-coded.'],
+            ],
+        ],
         '4.0.3' => [
             'date'  => '2026-10-11',
             'title' => 'Sub-menus, support form on any page, footer column reorder',

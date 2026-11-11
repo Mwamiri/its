@@ -108,6 +108,139 @@ class Website extends BaseController
         return $back->with('site_ok', 'Thank you, ' . $name . '. Your support request (' . $ref . ') has been received. We will contact you shortly.');
     }
 
+    /**
+     * Public JSON API for remote systems (UMI, Churchz, etc.) to fetch approved extensions.
+     * GET /extensions-api?platform=umi  (omit param for all platforms)
+     */
+    public function extensionsApi()
+    {
+        $db = $this->db();
+        if (!$db->tableExists('extensions')) {
+            return $this->response
+                ->setContentType('application/json')
+                ->setHeader('Access-Control-Allow-Origin', '*')
+                ->setBody('[]');
+        }
+        $q = $db->table('extensions')->where('status', 'approved');
+        $platform = strtolower(trim((string) $this->request->getGet('platform')));
+        if ($platform !== '') {
+            $q->where('platform', $platform);
+        }
+        $rows = $q->orderBy('name')->get()->getResultArray();
+
+        $out = array_map(function (array $r) {
+            return [
+                'id'             => (int)    $r['id'],
+                'name'           => (string) $r['name'],
+                'version'        => (string) $r['version'],
+                'platform'       => (string) $r['platform'],
+                'type'           => (string) $r['type'],
+                'description'    => (string) ($r['description'] ?? ''),
+                'author'         => (string) ($r['author'] ?? ''),
+                'license'        => (string) ($r['license'] ?? ''),
+                'tags'           => (string) ($r['tags'] ?? ''),
+                'min_version'    => (string) ($r['min_version'] ?? ''),
+                'screenshot_url' => !empty($r['screenshot']) ? base_url('uploads/extensions/' . $r['screenshot']) : '',
+                'download_url'   => base_url('extensions-download/' . $r['id']),
+                'file_size'      => (int)    ($r['file_size'] ?? 0),
+                'download_count' => (int)    ($r['download_count'] ?? 0),
+            ];
+        }, $rows);
+
+        return $this->response
+            ->setContentType('application/json')
+            ->setHeader('Access-Control-Allow-Origin', '*')
+            ->setHeader('Cache-Control', 'public, max-age=300')
+            ->setBody(json_encode($out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /** Public extension marketplace — approved extensions, no login required. */
+    public function extensions()
+    {
+        $db = $this->db();
+        $rows = [];
+        if ($db->tableExists('extensions')) {
+            $rows = $db->table('extensions')->where('status', 'approved')->orderBy('platform')->orderBy('name')->get()->getResultArray();
+        }
+        $grouped = [];
+        foreach ($rows as $r) {
+            $grouped[$r['platform']][] = $r;
+        }
+        return view('site/extensions_page', [
+            'site'       => Site::info(),
+            'design'     => Site::design(),
+            'menu'       => Site::menu(),
+            'user'       => session('its_user'),
+            'extensions' => $grouped,
+            'total'      => count($rows),
+        ]);
+    }
+
+    /** Public download of an approved extension — requires a registered email unless logged in as staff. */
+    public function extensionDownload(int $id)
+    {
+        $db = $this->db();
+        if (!$db->tableExists('extensions')) {
+            return $this->response->setStatusCode(404)->setBody('Extension not found.');
+        }
+        $ext = $db->table('extensions')->where('id', $id)->where('status', 'approved')->get()->getRowArray();
+        $filePath = $ext ? WRITEPATH . 'extensions/' . $ext['file_path'] : '';
+        if (!$ext || !file_exists($filePath)) {
+            return $this->response->setStatusCode(404)->setBody('Extension not found.');
+        }
+        // Staff session always passes the gate
+        if (!session('its_user')) {
+            $email = strtolower(trim((string) ($this->request->getGet('email') ?? session('ext_download_email') ?? '')));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return redirect()->to(base_url('extensions') . '?access=required&ext=' . $id . '#access-section');
+            }
+            if (!$db->tableExists('ext_subscriptions') || !$this->subscriptionAllowsByEmail($db, $email, $ext)) {
+                return redirect()->to(base_url('extensions') . '?access=denied&ext=' . $id . '#access-section');
+            }
+            session()->set('ext_download_email', $email);
+        }
+        $db->table('extensions')->where('id', $id)->set('download_count', 'download_count + 1', false)->update();
+        $dlName = strtolower(preg_replace('/[^a-z0-9._-]/i', '-', (string) $ext['name'])) . '-' . $ext['version'] . '.zip';
+        return $this->response->download($filePath, null)->setFileName($dlName);
+    }
+
+    private function subscriptionAllowsByEmail($db, string $email, array $ext): bool
+    {
+        $sub = $db->table('ext_subscriptions s')
+            ->select('s.status, s.expires_at, s.package_id, p.scope, p.allowed_platforms, p.allowed_extension_ids')
+            ->join('ext_packages p', 'p.id = s.package_id', 'left')
+            ->where('LOWER(s.subscriber_email)', $email)
+            ->where('s.status', 'active')
+            ->get()->getRowArray();
+        if (!$sub) return false;
+        if (!empty($sub['expires_at']) && strtotime((string) $sub['expires_at']) < time()) return false;
+        // Paid extensions require an assigned package
+        $isPaid = ($ext['price_type'] ?? 'free') === 'paid';
+        if ($isPaid && !$sub['package_id']) return false;
+        $scope = $sub['scope'] ?? 'all';
+        if ($scope === 'all' || !$sub['package_id']) return true;
+        if ($scope === 'platforms') {
+            $platforms = array_map('trim', explode(',', (string) ($sub['allowed_platforms'] ?? '')));
+            return in_array($ext['platform'], $platforms, true);
+        }
+        if ($scope === 'extensions') {
+            $ids = array_map('intval', array_filter(explode(',', (string) ($sub['allowed_extension_ids'] ?? ''))));
+            return in_array((int) $ext['id'], $ids, true);
+        }
+        return false;
+    }
+
+    /** Public software products showcase. */
+    public function products()
+    {
+        return view('site/products_page', [
+            'site'   => Site::info(),
+            'design' => Site::design(),
+            'menu'   => Site::menu(),
+            'user'   => session('its_user'),
+        ]);
+    }
+
     public function sitemap()
     {
         if (!Site::ready()) return $this->response->setStatusCode(404);

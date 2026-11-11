@@ -31,6 +31,7 @@ class Filters extends BaseFilters
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'modulegate'    => \App\Filters\ModuleGate::class,
+        'appsecheaders' => \App\Filters\AppSecurityHeaders::class,
         'cors'          => Cors::class,
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
@@ -80,7 +81,8 @@ class Filters extends BaseFilters
         ],
         'after' => [
             // 'honeypot',
-            'secureheaders', // X-Frame-Options, nosniff, Referrer-Policy (v2.1.1)
+            'secureheaders',   // X-Frame-Options, nosniff, Referrer-Policy (v2.1.1)
+            'appsecheaders',   // HSTS, CSP frame-ancestors, Permissions-Policy (v5.3.2)
         ],
     ];
 

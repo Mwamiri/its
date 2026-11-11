@@ -30,8 +30,20 @@ class ItsAuth extends ItsBase {
         session()->regenerate();
         (new UserModel())->update($u['id'], ['failed_logins' => 0, 'locked_until' => null, 'last_login' => date('Y-m-d H:i:s')]);
         (new LoginAttemptModel())->where('ip_address', $this->request->getIPAddress())->delete();
+        $this->writeLoginHistory((int) $u['id'], $u['username'], true, null);
         $this->audit('login', 'auth', $u['username']);
         return redirect()->to($this->homeFor(session('its_user')));
+    }
+    private function writeLoginHistory(?int $userId, string $username, bool $success, ?string $reason): void {
+        if (!$this->db->tableExists('login_history')) return;
+        $this->db->table('login_history')->insert([
+            'user_id'    => $userId,
+            'username'   => $username,
+            'success'    => $success ? 1 : 0,
+            'reason'     => $reason,
+            'ip_address' => $this->request->getIPAddress(),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
     public function login() {
         if ($this->user()) return redirect()->to($this->homeFor($this->user()));
@@ -59,6 +71,7 @@ class ItsAuth extends ItsBase {
                 return $this->finishLogin($u);
             } else {
                 $attempts->insert(['username' => $username, 'ip_address' => $ip, 'attempted_at' => date('Y-m-d H:i:s')]);
+                $this->writeLoginHistory($u ? (int) $u['id'] : null, $username, false, 'Invalid credentials');
                 if ($u) {
                     $fails = (int) $u['failed_logins'] + 1;
                     $users->update($u['id'], ['failed_logins' => $fails, 'locked_until' => $fails >= 5 ? date('Y-m-d H:i:s', strtotime('+15 minutes')) : null]);

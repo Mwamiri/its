@@ -1,7 +1,15 @@
 <?= view('itsupport/_header') ?>
 <?php $tcfDefs = \App\Libraries\CustomFields::defs('tickets'); ?>
 <div class="card"><div class="section-heading"><div><p class="eyebrow"><?= esc($ticket['ticket_number']) ?> · <?= esc(str_replace('_', ' ', $ticket['priority'])) ?> priority</p><h2><?= esc($ticket['subject']) ?></h2></div>
-<div class="quick-actions"><span class="badge blue"><?= esc(str_replace('_', ' ', $ticket['status'])) ?></span><a class="button" href="<?= base_url('its-report/' . $ticket['id']) ?>">Report &amp; sign-off</a></div></div>
+<div class="quick-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<span class="badge blue"><?= esc(str_replace('_', ' ', $ticket['status'])) ?></span>
+<a class="button secondary" href="<?= base_url('its-report/' . $ticket['id']) ?>">Report &amp; sign-off</a>
+<form method="post" action="<?= base_url('its-tickets-watch/' . $ticket['id']) ?>" style="display:contents"><?= csrf_field() ?>
+<button class="btn secondary" title="<?= $watching ? 'Stop watching' : 'Watch this ticket — get emailed on updates' ?>"><?= $watching ? '🔔 Watching' : '🔕 Watch' ?></button>
+</form>
+<button class="btn secondary" onclick="document.getElementById('merge-modal').removeAttribute('hidden')">⇄ Merge</button>
+</div></div>
+<?php if ($watchers) { ?><p class="muted" style="font-size:12px;margin:4px 0 0">Watching: <?= esc(implode(', ', array_column($watchers, 'name'))) ?></p><?php } ?>
 <p class="muted"><?php if ($client) { ?>Client: <a href="<?= base_url('its-clients-view/' . $client['id']) ?>"><?= esc($client['name']) ?></a><?= $client['phone'] ? ' · ' . esc($client['phone']) : '' ?><?php } ?>
 <?php if ($asset) { ?> · Equipment: <a href="<?= base_url('its-assets-view/' . $asset['id']) ?>"><?= esc($asset['name']) ?></a><?= $asset['serial_number'] ? ' (S/N ' . esc($asset['serial_number']) . ')' : '' ?><?php } ?>
  · Opened <?= esc(substr((string) $ticket['created_at'], 0, 16)) ?></p>
@@ -53,4 +61,22 @@
 <span class="badge blue"><?= esc($t['status']) ?></span>
 <div><?php foreach (($photos[$t['id']] ?? []) as $p) { ?><img class="photo-thumb" src="<?= base_url($p['photo_path']) ?>"><?php } ?></div></div>
 <?php } ?>
+<!-- Merge ticket modal -->
+<div id="merge-modal" hidden style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(3px)">
+  <div style="background:var(--paper);border-radius:18px;padding:30px 32px;min-width:320px;max-width:500px;width:92%;box-shadow:0 24px 64px rgba(0,0,0,.25)">
+    <p style="margin:0 0 14px;font-size:1.05rem;font-weight:700;color:var(--ink)">Merge into another ticket</p>
+    <p class="muted">All updates, tasks and time entries from <strong><?= esc($ticket['ticket_number']) ?></strong> will be moved to the target ticket, and this ticket will be closed.</p>
+    <form method="post" action="<?= base_url('its-tickets-merge/' . $ticket['id']) ?>"><?= csrf_field() ?>
+    <label for="merge-into">Target ticket</label>
+    <select id="merge-into" name="merge_into" required style="margin:8px 0 16px">
+      <option value="">— Select a ticket —</option>
+      <?php foreach ($allTickets as $at) { ?><option value="<?= (int) $at['id'] ?>"><?= esc($at['ticket_number']) ?> – <?= esc(mb_strimwidth($at['subject'], 0, 60, '…')) ?></option><?php } ?>
+    </select>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="button" class="btn secondary" onclick="document.getElementById('merge-modal').setAttribute('hidden','')">Cancel</button>
+      <button class="btn" onclick="return confirm('Merge this ticket? This cannot be undone.')">Merge</button>
+    </div>
+    </form>
+  </div>
+</div>
 <?= view('itsupport/_footer') ?>

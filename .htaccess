@@ -9,6 +9,13 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Keep application and dependency files outside the public web root.
+    RewriteRule ^(?:app|system|writable|vendor|tests|build|node_modules|\.git)(?:/|$) - [F,L,NC]
+
+    # Do not rewrite requests into public/ a second time.
+    RewriteRule ^public(?:/|$) - [L]
+
     # Send every request into public/; public/.htaccess then routes it to index.php.
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

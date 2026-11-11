@@ -9,6 +9,7 @@ class ItsAdmin extends ItsBase {
         return view('itsupport/admin', [
             'title' => 'Admin', 'tab' => $tab,
             'users' => (new UserModel())->orderBy('name')->findAll(),
+            'editUser' => $tab === 'users' && $this->request->getGet('edit_user') ? (new UserModel())->find((int)$this->request->getGet('edit_user')) : null,
             'logs' => $this->db->table('audit_log')->select('audit_log.*, users.name AS user_name')->join('users', 'users.id = audit_log.user_id', 'left')->orderBy('audit_log.created_at', 'DESC')->limit(200)->get()->getResultArray(),
             'mails' => $this->db->table('mail_log')->orderBy('created_at', 'DESC')->limit(200)->get()->getResultArray(),
             'schedules' => $this->db->table('maintenance_schedules')->select('maintenance_schedules.*, clients.name AS client_name')->join('clients', 'clients.id = maintenance_schedules.client_id')->get()->getResultArray(),
@@ -203,8 +204,11 @@ class ItsAdmin extends ItsBase {
     }
     public function mailTest() {
         if ($r = $this->needAdmin()) return $r;
-        $ok = (new MailLib())->send([(string) $this->request->getPost('test_email')], 'Test Email', '<p>Test from IT Support System (CodeIgniter 4).</p>');
-        return redirect()->to(base_url('its-admin?tab=mail'))->with($ok ? 'ok' : 'err', $ok ? 'Test sent.' : 'Test failed.');
+        $lib = new MailLib();
+        $ok  = $lib->send([(string) $this->request->getPost('test_email')], 'IT Support — Mail Test', '<p style="font-family:Arial">This is a test email from your IT Support system. If you received it, your mail settings are working correctly.</p>');
+        $msg = $ok ? 'Test email sent successfully — check your inbox.' : 'Send failed: ' . ($lib->lastError ?: 'Unknown error — check the mail log for details.');
+        $this->audit('mail_test', 'admin', $ok ? 'ok' : 'failed');
+        return redirect()->to(base_url('its-admin?tab=mail'))->with($ok ? 'ok' : 'err', $msg);
     }
     public function addSchedule() {
         if ($r = $this->needAdmin()) return $r;
@@ -225,5 +229,92 @@ class ItsAdmin extends ItsBase {
             ->download('itsupport-ci4-' . date('Ymd-His') . '.sql.gz', $compressed)
             ->setContentType('application/gzip')
             ->setHeader('Cache-Control', 'no-store, private');
+    }
+
+    public function updateUser(int $id) {
+        if ($r = $this->needAdmin()) return $r;
+        $back = redirect()->to(base_url('its-admin?tab=users'));
+        $u = (new UserModel())->find($id);
+        if (!$u) return $back->with('err', 'User not found.');
+        $name = trim((string) $this->request->getPost('name'));
+        $email = trim((string) $this->request->getPost('email'));
+        $role  = (string) $this->request->getPost('role');
+        $active = $this->request->getPost('active') ? 1 : 0;
+        $clientId = (int) $this->request->getPost('client_id');
+        if (!in_array($role, ['admin', 'manager', 'technician', 'client'], true) || $name === '') {
+            return $back->with('err', 'Enter a name and a valid role.');
+        }
+        if ($role === 'client' && !(new ClientModel())->find($clientId)) {
+            return $back->with('err', 'Choose the client this portal login belongs to.');
+        }
+        $data = ['name' => $name, 'email' => $email, 'role' => $role, 'active' => $active, 'client_id' => $role === 'client' ? $clientId : null];
+        $pw = (string) $this->request->getPost('password');
+        if ($pw !== '') {
+            if (strlen($pw) < 8) return $back->with('err', 'New password must be at least 8 characters.');
+            $data['password'] = password_hash($pw, PASSWORD_DEFAULT);
+        }
+        (new UserModel())->update($id, $data);
+        $this->audit('user_updated', 'users', $u['username'] . ' — role: ' . $role);
+        return $back->with('ok', 'User "' . esc($u['username']) . '" updated.');
+    }
+
+    public function deleteUser(int $id) {
+        if ($r = $this->needAdmin()) return $r;
+        $back = redirect()->to(base_url('its-admin?tab=users'));
+        if ($this->user()['id'] === $id) return $back->with('err', 'You cannot delete your own account.');
+        $u = (new UserModel())->find($id);
+        if (!$u) return $back->with('err', 'User not found.');
+        (new UserModel())->delete($id);
+        $this->audit('user_deleted', 'users', $u['username']);
+        return $back->with('ok', 'User "' . esc($u['username']) . '" deleted.');
+    }
+
+    public function saveMail() {
+        if ($r = $this->needAdmin()) return $r;
+        $method = (string) $this->request->getPost('mail_method');
+        if (!in_array($method, ['mail', 'smtp', 'log'], true)) $method = 'mail';
+        SettingModel::put('mail_method', $method);
+        foreach (['mail_from_email', 'mail_from_name', 'smtp_host', 'smtp_username', 'smtp_encryption'] as $k) {
+            if ($this->request->getPost($k) !== null) SettingModel::put($k, trim((string) $this->request->getPost($k)));
+        }
+        $port = (int) $this->request->getPost('smtp_port');
+        if ($port > 0 && $port < 65536) SettingModel::put('smtp_port', (string) $port);
+        $pw = (string) $this->request->getPost('smtp_password');
+        if ($pw !== '') SettingModel::put('smtp_password', $pw);
+        SettingModel::put('smtp_verify_cert', $this->request->getPost('smtp_verify_cert') === '0' ? '0' : '1');
+        $this->logCustom('Mail', 'Mail settings updated', $method);
+        $this->audit('settings_mail', 'admin', "Mail method set to {$method} by " . ($this->user()['username'] ?? ''));
+        return redirect()->to(base_url('its-admin?tab=mail'))->with('ok', 'Mail settings saved.');
+    }
+
+    public function saveSecSettings() {
+        if ($r = $this->needAdmin()) return $r;
+        // Only overwrite each field if the form actually posted it — prevents Form 1 from clearing IP lists
+        if ($this->request->getPost('idle_minutes') !== null) {
+            SettingModel::put('session_timeout', (string) max(0, min(480, (int) $this->request->getPost('idle_minutes'))));
+        }
+        if ($this->request->getPost('_has_2fa_field') !== null) {
+            SettingModel::put('require_2fa_admin', $this->request->getPost('require_2fa_admin') ? '1' : '0');
+            SettingModel::put('require_2fa_staff', $this->request->getPost('require_2fa_staff') ? '1' : '0');
+        }
+        foreach (['ip_allow', 'ip_block'] as $k) {
+            if ($this->request->getPost($k) !== null) SettingModel::put($k, trim((string) $this->request->getPost($k)));
+        }
+        $this->logCustom('Security', 'Security policy updated', '');
+        $this->audit('settings_security', 'admin', 'Security policy updated by ' . ($this->user()['username'] ?? ''));
+        return redirect()->to(base_url('its-admin?tab=security'))->with('ok', 'Security settings saved.');
+    }
+
+    public function exportAudit() {
+        if ($r = $this->needAdmin()) return $r;
+        $rows = $this->db->table('audit_log')
+            ->select('audit_log.created_at, users.username, audit_log.action, audit_log.module, audit_log.details')
+            ->join('users', 'users.id = audit_log.user_id', 'left')
+            ->orderBy('audit_log.id', 'DESC')->get()->getResultArray();
+        $out = "When,User,Action,Module,Details\r\n";
+        foreach ($rows as $r) {
+            $out .= implode(',', array_map(fn($v) => '"' . str_replace('"', '""', (string) $v) . '"', $r)) . "\r\n";
+        }
+        return $this->response->download('audit-' . date('Ymd') . '.csv', $out)->setContentType('text/csv');
     }
 }

@@ -48,6 +48,9 @@ class ItsBase extends BaseController {
         if (($u['role'] ?? '') === 'admin' && SettingModel::get('require_2fa_admin', '0') === '1' && !$this->hasTotp($u['id'])) {
             return redirect()->to(base_url('its-security'))->with('err', 'Two-factor authentication is required for administrators. Enable it to continue.');
         }
+        if (!in_array($u['role'] ?? '', ['admin', 'client'], true) && SettingModel::get('require_2fa_staff', '0') === '1' && !$this->hasTotp($u['id'])) {
+            return redirect()->to(base_url('its-security'))->with('err', 'Two-factor authentication is required for all staff. Enable it on your security page to continue.');
+        }
         $module = self::MODULES[(new \ReflectionClass($this))->getShortName()] ?? null;
         if ($module) {
             $need = $this->request->getMethod() === 'GET' ? 1 : 2;

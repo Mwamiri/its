@@ -40,6 +40,9 @@ Fill out the form and click Install.
 ## Updating an Existing Installation
 Before updating, make a database backup. Run the CodeIgniter migrations for additive changes (`php spark migrate`) with the PHP CLI configured with the same database credentials and MySQLi extension as the web server. The supplied `itsupport_schema.sql` is also useful for creating missing tables on a fresh schema, but `CREATE TABLE IF NOT EXISTS` does not alter tables that already exist.
 
+Release packages built with `build-deploy.ps1` contain no local `.env`, writable data, or uploaded files. Use the update ZIP for an existing installation and retain its `.env`, database, writable data, and uploads. The install ZIP is for a new installation.
+For a fresh cPanel installation, follow the `INSTALL.txt` included in the install ZIP. The browser setup requires a private setup key in `.env`, imports no existing data, runs migrations after the base schema has been imported, and refuses to create an administrator if users already exist. Remove the setup key from `.env` after use.
+
 Network availability checks only test one configured TCP port per device. To schedule checks, enable monitoring for selected devices and call `/its-cron-device-monitor?token=TOKEN` from a trusted scheduler every few minutes. Keep the cron token private and configure devices only on networks the system is authorized to probe.
 
 Camera RTSP/RTSPS URLs are optional and editable by administrators in the camera register. They are encrypted with the application encryption key, are not shown in camera listings, and cannot be recovered if that key is lost. The RTSP URL field stores connection details only; it does not proxy or display live video.
@@ -63,7 +66,7 @@ The administrator-only credential vault requires a secret application key. Run `
 The app manifest and service worker are available from the application base URL on `localhost` or an HTTPS origin. The service worker caches only the generic offline fallback page; authenticated pages, client records, submissions, and entered form data are never cached. The offline page is informational and cannot submit work until connectivity returns.
 
 ## Troubleshooting
-- **404 errors**: Check `.env` baseURL has trailing slash, check `public/.htaccess` exists
+- **404 errors**: If the web server's own 404 page appears even for `/index.php`, check the domain's document root and that it points to this installation's `public` directory. Otherwise, check that `.env` baseURL has a trailing slash and `public/.htaccess` exists. Ensure the server permits rewrite rules.
 - **500 errors**: Change `CI_ENVIRONMENT = production` to `development` in `.env` to see errors
 - **Uploads not working**: Check `public/uploads` permissions (755 or 775)
 ## SNMP monitoring

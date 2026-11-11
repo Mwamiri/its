@@ -1,5 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0f172a">
 <title><?= esc($title ?? 'App') ?> - <?= esc(\App\Models\SettingModel::get('company_name','IT Support')) ?></title>
+<?php $_favLogo = \App\Models\SettingModel::get('company_logo', ''); ?>
+<?php if ($_favLogo !== '') { ?><link rel="icon" href="<?= esc(base_url($_favLogo)) ?>"><?php } else { ?><link rel="icon" href="<?= base_url('favicon.ico') ?>"><?php } ?>
 <link rel="manifest" href="<?= base_url('its-manifest') ?>">
 <link rel="stylesheet" href="<?= base_url('assets/tailwind.css') ?>?v=<?= (int) @filemtime(FCPATH . 'assets/tailwind.css') ?>">
 <link rel="stylesheet" href="<?= base_url('assets/vendor/icons/bootstrap-icons.min.css') ?>">
@@ -61,7 +63,8 @@ html[dir=rtl] body{text-align:right}html[dir=rtl] nav form{margin-left:0;margin-
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 html[data-mode=dark]{color-scheme:dark;--ink:#e5edf8;--muted:#a4b2c5;--line:#334155;--paper:#172235;--canvas:#0b1220;--brand-soft:#1c2d49;--banner-start:#081222;--banner-end:#17263b;--shadow:0 8px 26px rgba(0,0,0,.22)}
 html[data-mode=dark] body{background:radial-gradient(ellipse at 8% 0%,#192741 0,transparent 34%),var(--canvas);color:var(--ink)}
-html[data-mode=dark] nav{background:rgba(14,23,38,.96);border-color:var(--line)}
+html[data-mode=dark] nav{background:rgba(14,23,38,.98);border-color:var(--line)}
+html[data-mode=dark] .sb-name{color:var(--ink)}
 html[data-mode=dark] nav a,html[data-mode=dark] nav summary,html[data-mode=dark] nav button.mode-toggle{color:#c4d0df}
 html[data-mode=dark] nav a:hover,html[data-mode=dark] nav summary:hover,html[data-mode=dark] nav button.mode-toggle:hover{background:#26354a;color:#fff}
 html[data-mode=dark] nav a[aria-current=page],html[data-mode=dark] nav details.is-active>summary{background:#253855;color:#cfe0ff}
@@ -129,31 +132,42 @@ input[type=file]{padding:9px}
 @media(prefers-color-scheme:dark){html:not([data-mode=light]){}}
 @media(forced-colors:active){.badge{border:1px solid CanvasText}}
 @media(min-width:1000px){
-body:has(nav[aria-label="Main navigation"]){padding-inline-start:236px}
-nav[aria-label="Main navigation"]{position:fixed;inset-block:0;inset-inline-start:0;width:236px;z-index:20;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:2px;padding:14px 10px;overflow-y:auto;border-bottom:0;border-inline-end:1px solid var(--line);container-type:normal}
-nav[aria-label="Main navigation"] .nav-group{width:100%}
-nav[aria-label="Main navigation"] summary{pointer-events:none;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8996a8;padding:12px 10px 4px;min-height:0}
+body:has(nav[aria-label="Main navigation"]){padding-inline-start:248px}
+nav[aria-label="Main navigation"]{position:fixed;inset-block:0;inset-inline-start:0;width:248px;z-index:20;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:0;padding:0 8px 16px;overflow-y:auto;border-bottom:0;border-inline-end:1px solid var(--line);container-type:normal;scrollbar-width:thin}
+nav[aria-label="Main navigation"] .nav-group{width:100%;margin-top:4px}
+nav[aria-label="Main navigation"] .nav-group+.nav-group{border-top:1px solid var(--line);padding-top:4px;margin-top:4px}
+nav[aria-label="Main navigation"] summary{pointer-events:none;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--muted) 80%,transparent);padding:14px 10px 3px;min-height:0;font-weight:700}
 nav[aria-label="Main navigation"] summary:after{display:none}
 nav[aria-label="Main navigation"] details::details-content{content-visibility:visible;display:block}
 nav[aria-label="Main navigation"] .nav-menu{position:static;display:grid;min-width:0;padding:0;border:0;box-shadow:none;background:transparent;animation:none}
-nav[aria-label="Main navigation"] .nav-menu a{padding:9px 10px}
+nav[aria-label="Main navigation"] .nav-menu a{padding:8px 10px;border-radius:10px;gap:0;transition:background .12s,color .12s}
+nav[aria-label="Main navigation"] .nav-menu a:hover{background:var(--brand-soft);color:var(--brand-dark)}
+nav[aria-label="Main navigation"] .nav-menu a[aria-current=page]{background:var(--brand-soft);color:var(--brand-dark);font-weight:600;box-shadow:inset 3px 0 var(--brand)}
+nav[aria-label="Main navigation"] .nav-menu a .nav-ico{color:var(--muted);transition:color .12s}
+nav[aria-label="Main navigation"] .nav-menu a:hover .nav-ico,nav[aria-label="Main navigation"] .nav-menu a[aria-current=page] .nav-ico{color:var(--brand)}
 nav[aria-label="Main navigation"]>a,nav[aria-label="Main navigation"]>button{justify-content:flex-start;width:100%}
 nav[aria-label="Main navigation"] form{margin:auto 0 0;width:100%}nav[aria-label="Main navigation"] form button{width:100%;justify-content:flex-start}
 .nav-extra{display:none!important}
-.appbar{position:fixed;inset-block-start:0;inset-inline:236px 0;z-index:15;display:flex;align-items:center;justify-content:flex-end;gap:12px;height:56px;padding:0 24px;background:var(--paper);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+/* Sidebar brand slot */
+.sb-brand{display:flex;align-items:center;gap:10px;padding:16px 12px 12px;margin-bottom:2px;text-decoration:none;color:inherit;min-width:0}
+.sb-brand:hover{background:none}
+.sb-logo{flex:0 0 auto;width:34px;height:34px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--brand);color:#fff}
+.sb-logo img{width:34px;height:34px;object-fit:cover}
+.sb-name{font-size:14px;font-weight:700;letter-spacing:-.02em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ink)}
+/* Appbar */
+.appbar{position:fixed;inset-block-start:0;inset-inline:248px 0;z-index:15;display:flex;align-items:center;justify-content:flex-end;gap:12px;height:56px;padding:0 24px;background:rgba(var(--paper-rgb,255,255,255),.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 body:has(.appbar)>header{margin-block-start:56px}
-.ab-bell{margin-inline-start:auto}.ab-search{display:flex;align-items:center;gap:8px;min-width:280px;border:1px solid var(--line);background:var(--canvas);color:var(--muted);padding:8px 12px;border-radius:10px;font-size:13px;cursor:pointer}
+.ab-bell{margin-inline-start:auto}.ab-search{display:flex;align-items:center;gap:8px;min-width:300px;border:1px solid var(--line);background:var(--canvas);color:var(--muted);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;transition:border .15s,box-shadow .15s}
+.ab-search:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line));box-shadow:0 0 0 3px var(--brand-soft)}
 .ab-search kbd{margin-inline-start:auto;font:11px monospace;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
 .ab-menu{position:relative}.ab-menu>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px}.ab-menu>summary::-webkit-details-marker{display:none}.ab-menu>summary:hover{background:var(--brand-soft)}
 .ab-bell>summary{position:relative;font-size:18px}.ab-dot{position:absolute;top:0;inset-inline-end:0;min-width:18px;padding:0 5px;border-radius:9px;background:#dc2626;color:#fff;font:700 11px/18px sans-serif;text-align:center}
-.ab-avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;font-weight:700;font-size:13px}.ab-name{font-size:13px;font-weight:600}
+.ab-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 6px var(--brand-shadow)}.ab-name{font-size:13px;font-weight:600}
 .ab-panel{position:absolute;inset-inline-end:0;top:calc(100% + 6px);z-index:30;display:grid;gap:2px;width:320px;max-height:70vh;overflow:auto;padding:10px;background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px rgba(15,23,42,.18)}
 .ab-user .ab-panel{width:220px}.ab-panel strong{padding:4px 8px}.ab-panel small{display:block;color:var(--muted);padding:0 8px}
 .ab-panel a,.ab-panel button{display:block;text-align:start;width:100%;padding:8px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:13px;text-decoration:none;cursor:pointer}.ab-panel a:hover,.ab-panel button:hover{background:var(--brand-soft)}
 .ab-panel p{padding:8px;margin:0}
-nav[aria-label="Main navigation"]{padding-top:18px}
-nav[aria-label="Main navigation"] .nav-group:first-child summary{padding-top:0}
-nav[aria-label="Main navigation"] details.is-active>summary{background:transparent!important;color:#8996a8!important}
+nav[aria-label="Main navigation"] details.is-active>summary{background:transparent!important;color:color-mix(in srgb,var(--muted) 80%,transparent)!important}
 }
 @media(max-width:999px){.appbar{display:none}.tabbar{position:fixed;inset-inline:0;bottom:0;z-index:25;display:flex;background:var(--paper);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}.tabbar a,.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:0;background:transparent;color:var(--muted);font:600 11px sans-serif;text-decoration:none}.tabbar span{font-size:18px}.tabbar [aria-current=page]{color:var(--brand-dark)}body:has(.tabbar){padding-bottom:62px}}
 @media(min-width:1000px){.tabbar{display:none}}
@@ -230,14 +244,26 @@ if ($isAdmin) {
         ['label' => 'Billing', 'url' => 'its-billing', 'icon' => 'credit-card', 'active' => $on('its-billing')],
     ]];
 }
-$systemItems = [['label' => 'Website', 'url' => 'its-site', 'icon' => 'globe2', 'active' => $on('its-site')], ['label' => 'Import', 'url' => 'its-import', 'icon' => 'download', 'active' => $on('its-import')]];
-if ($isAdmin) array_push($systemItems,
-    ['label' => 'Admin', 'url' => 'its-admin', 'icon' => 'sliders', 'active' => $on('its-admin')],
-    ['label' => 'Updates', 'url' => 'its-updates', 'icon' => 'arrow-up-circle', 'active' => $on('its-updates')],
-    ['label' => 'Modules', 'url' => 'its-modules', 'icon' => 'puzzle', 'active' => $on('its-modules')],
-    ['label' => 'Health', 'url' => 'its-health', 'icon' => 'heart-pulse', 'active' => $on('its-health')]);
-$navGroups[] = ['label' => 'System', 'items' => $systemItems];
-$navGroups[] = ['label' => 'Help & account', 'items' => [
+$navGroups[] = ['label' => 'Platform', 'items' => [
+    ['label' => 'Website', 'url' => 'its-site', 'icon' => 'globe2', 'active' => $on('its-site')],
+    ['label' => 'Extensions', 'url' => 'its-extensions', 'icon' => 'plugin', 'active' => $on('its-extensions')],
+    ['label' => 'Subscriptions', 'url' => 'its-ext-subscriptions', 'icon' => 'key', 'active' => $on('its-ext-subscriptions')],
+    ['label' => 'Import', 'url' => 'its-import', 'icon' => 'download', 'active' => $on('its-import')],
+]];
+if ($isAdmin) {
+    $navGroups[] = ['label' => 'System', 'items' => [
+        ['label' => 'Admin', 'url' => 'its-admin', 'icon' => 'sliders', 'active' => $on('its-admin')],
+        ['label' => 'Updates', 'url' => 'its-updates', 'icon' => 'arrow-up-circle', 'active' => $on('its-updates')],
+        ['label' => 'Modules', 'url' => 'its-modules', 'icon' => 'puzzle', 'active' => $on('its-modules')],
+        ['label' => 'Health', 'url' => 'its-health', 'icon' => 'heart-pulse', 'active' => $on('its-health')],
+    ]];
+    $navGroups[] = ['label' => 'Monitoring', 'items' => [
+        ['label' => 'Sign-ins', 'url' => 'its-signins', 'icon' => 'clock-history', 'active' => $on('its-signins')],
+        ['label' => 'Error Logs', 'url' => 'its-logs', 'icon' => 'file-text', 'active' => $on('its-logs')],
+        ['label' => 'Cleanup', 'url' => 'its-cleanup', 'icon' => 'trash3', 'active' => $on('its-cleanup')],
+    ]];
+}
+$navGroups[] = ['label' => 'Account', 'items' => [
     ['label' => 'Security', 'url' => 'its-security', 'icon' => 'shield-lock', 'active' => $on('its-security')],
     ['label' => 'Help', 'url' => 'its-help', 'icon' => 'question-circle', 'active' => $on('its-help')],
     ['label' => 'Features', 'url' => 'its-features', 'icon' => 'stars', 'active' => $on('its-features')],
@@ -271,6 +297,10 @@ if ($navRole !== 'client') {
 }
 ?>
 <nav aria-label="Main navigation" :class="nav && 'nav-open'" @click.outside="nav = false">
+<a class="sb-brand" href="<?= base_url('its-dashboard') ?>" tabindex="-1" aria-hidden="true">
+  <span class="sb-logo"><?php if ($companyLogo !== '') { ?><img src="<?= esc(base_url($companyLogo)) ?>" alt=""><?php } else { ?><svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 2.8 20 6v5.5c0 4.6-3.2 8-8 9.7-4.8-1.7-8-5.1-8-9.7V6l8-3.2Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 12h2.3l1.3-2.4 1.8 4.8 1.2-2.4H17" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/></svg><?php } ?></span>
+  <span class="sb-name"><?= esc($companyName) ?></span>
+</a>
 <?php foreach ($navGroups as $group) { $groupActive = count(array_filter($group['items'], static fn(array $item): bool => $item['active'])) > 0; ?>
 <details class="nav-group<?= $groupActive ? ' is-active' : '' ?>"><summary data-i18n="<?= esc($group['label']) ?>"><?= esc($group['label']) ?></summary><div class="nav-menu">
 <?php foreach ($group['items'] as $item) { $cnt = (int) ($navCounts[$item['url']] ?? 0); ?><a href="<?= base_url($item['url']) ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?>><i class="bi bi-<?= esc($item['icon'] ?? 'circle') ?> nav-ico" aria-hidden="true"></i><span data-i18n="<?= esc($item['label']) ?>"><?= esc($item['label']) ?></span><?php if ($cnt) { ?><span class="nav-count" title="Assigned to you and open"><?= $cnt > 99 ? '99+' : $cnt ?></span><?php } ?></a><?php } ?>
