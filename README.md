@@ -1,68 +1,116 @@
 # Mwamiri IT Support
 
-A self-hosted IT support and field-service platform built on **CodeIgniter 4.7** (PHP 8.2+, MySQL/MariaDB). It manages clients, equipment, tickets and quotes, with a client portal, a Kanban board, network monitoring, billing and enterprise security. Current version: **3.5.0** (see [RELEASES.md](RELEASES.md)).
+A self-hosted IT service desk, field-service system, client portal, and company website built with CodeIgniter 4 and PHP. It brings ticketing, client and asset management, monitoring, billing, public website content, and an extension marketplace into one application.
+
+**Current release: 5.3.6** — see [release history](RELEASES.md).
 
 ## Features
 
-| Area | What it does |
-|---|---|
-| **Tickets** | Create and track tickets with priority, type, assignee and SLA due dates. Add tasks (diagnosis, action, parts and labour cost), photos, time entries and canned replies. Produces a signed service report. |
-| **Kanban board** | Drag tickets between status columns. Overdue tickets are flagged. |
-| **Clients and quotes** | Client records with logos and retainer hours. Quotes with line items, emailed to the client for approval through a secure link. |
-| **Assets and machine service log** | Registers machines with CPU, RAM, storage, OS, purchase and warranty dates. Log repairs, new builds, and RAM/SSD/CPU/OS upgrades with before/after specs, costs and an optional ticket link. Specs update automatically. QR code per asset. |
-| **Client portal** | Clients see only their own tickets, report issues, reply, rate the service and read help articles. |
-| **Network and credentials** | Device and camera inventory with TCP availability checks, and an AES-encrypted credential vault with an audit trail on reveals. |
-| **Reports and forms** | Report builder with CSV export, custom forms with submissions, and a knowledge base (internal and public articles). |
-| **Billing** | Monthly retainer vs billable hours, overage amount, CSV export and an iCal feed. |
-| **Security** | Role-based permissions (admin, manager, technician, client), TOTP two-factor authentication with recovery codes, login lockout, password policy, audit log and CSRF protection. |
-| **Integrations** | REST API (`/api/v1/tickets`, `clients`, `assets`) with API keys, and webhooks. |
-| **Operations** | Scheduled backups, system health page, integrity-checked updater, mail log and cron endpoints. |
-| **Interface** | Left sidebar with top bar, notification bell (overdue tickets and offline devices), Ctrl+K search, dark mode, text-size controls, mobile bottom tab bar, and six languages (English, French, Spanish, Kiswahili, Arabic, Chinese). |
+### Service desk
 
-## System at a glance
+- Ticket queues with priorities, types, assignments, due dates, SLA targets, status filters, and a drag-and-drop Kanban board.
+- Ticket tasks for diagnosis, work performed, parts, labour, time entries, attachments, canned replies, and signed service reports.
+- Bulk ticket actions, ticket watchers with email notifications, ticket merging, and client satisfaction surveys.
+- Quotes with line items and secure client approval links.
+- A searchable knowledge base for staff and clients.
 
-- 23 controllers, 122 routes, 12 migrations and 30 database tables.
-- Main tables: `tickets`, `tasks`, `clients`, `assets`, `asset_events`, `quotes`, `network_devices`, `vault_credentials`, `kb_articles`, `users`, `role_permissions`, `api_keys`, `webhooks`, `audit_log`.
-- Libraries: `Perm`, `Sla`, `Totp`, `TicketService`, `Webhooks`, `Backup`, `SystemUpdater`, `NetworkMonitor`, `CredentialVault`, `MailLib`, `ReportLib`, `Qr`.
-- Tailwind CSS (prefix `tw-`) compiled to `public/assets/tailwind.css`.
+### Clients, assets, and client portal
+
+- Client records, contacts, retainer hours, and client-linked users.
+- Asset register with machine specifications, warranty and purchase dates, QR codes, CSV export, and service history for repairs and upgrades.
+- Client portal for tickets, quotes, assets, service reports, help articles, and forms. Portal users are restricted to their own client data.
+- Custom fields for clients, assets, and tickets.
+
+### Monitoring and operations
+
+- Network device and camera registers, TCP availability checks, scheduled device monitoring, and SNMPv2c uptime checks.
+- SSL certificate and domain expiry monitoring.
+- System health checks for server, storage, database, mail, security, and required writable directories.
+- Scheduled database backups, error-log viewer, sign-in history, system cleanup tools, and an integrity-checked updater with backups and restore support.
+- Admin tools for mail configuration, user management, permissions, audit logs, security settings, and module controls.
+
+### Website and extensions
+
+- Public website CMS with a drag-and-drop page builder, reusable content blocks, configurable navigation and footer, support/contact forms, and SEO controls.
+- Public products showcase and extension marketplace with platform filters, extension metadata, screenshots, changelogs, and download statistics.
+- Staff extension portal for uploads, review/approval, and platform-specific distribution. Subscription keys and access packages can control downloads.
+- Public extensions API for approved catalogue entries.
+
+### Security and administration
+
+- Role-based permissions for administrators, managers, technicians, and client users.
+- TOTP and email-based two-factor authentication, optional staff-wide 2FA enforcement, login lockout, session controls, and IP allow/block lists.
+- Security headers, CSRF protection, rate limiting, audit trails, and encrypted credential storage.
+- API keys and signed webhooks for integrations.
+- Global command palette/search, dashboard shortcuts, notifications, dark mode, mobile navigation, and multiple language options.
+
+### Reporting and productivity
+
+- Billing for retainer and billable hours, CSV exports, and private iCal feeds.
+- Report builder, custom forms, CSV/Excel imports, training attendance, and branded client documents.
+- Dashboard alerts and reports for operational and service activity.
 
 ## Requirements
 
-PHP 8.2+ with `intl`, `mbstring`, `mysqli`, `curl`, `zip`; MySQL 5.7+ or MariaDB 10.4+; Apache or Nginx; Node.js only if you change styles.
+- PHP 8.2+ with `intl`, `mbstring`, `mysqli`, `curl`, and `zip`.
+- MySQL 5.7+ or MariaDB 10.4+.
+- Apache or Nginx configured to serve the `public/` directory and allow the application's rewrite rules.
+- HTTPS is strongly recommended for production.
+- Node.js is needed only when rebuilding front-end styles. The compiled CSS is included.
 
-## Install
+The CodeIgniter framework is bundled in `system/`; a production installation does not need Composer. Composer dependencies are needed for development tools and tests.
+
+## Fresh installation
+
+For cPanel or other packaged installations, use the install ZIP and follow [INSTALL.txt](INSTALL.txt). In summary:
+
+1. Extract the package into the application directory and point the domain document root to its `public/` folder.
+2. Create an empty MySQL/MariaDB database and import `itsupport_schema.sql`.
+3. Copy `env` to `.env`; configure `CI_ENVIRONMENT`, `app.baseURL`, database access, and a strong `encryption.key`.
+4. Set a private random `its.setupKey` in `.env`, then open `/its-setup` to run the remaining migrations and create the first administrator.
+5. Remove `its.setupKey` from `.env` after setup. Keep `.env`, encryption keys, cron tokens, database backups, and uploaded files private.
+
+For local development, clone the repository:
 
 ```bash
 git clone https://github.com/Mwamiri/its.git
 cd its
-cp env .env                 # then edit .env
 ```
 
-In `.env` set `app.baseURL`, the `database.default.*` values, and `encryption.key` (generate with `php spark key:generate`). Then:
+Configure `.env` and the database as above, then apply migrations:
 
 ```bash
 php spark migrate
 ```
 
-The framework is bundled in `system/`, so no Composer step is needed. Import `itsupport_schema.sql` first on a fresh database if migrations alone are not enough, then open `/its-install` once to create the first admin account. Point the web root at `public/`. See [DEPLOY.md](DEPLOY.md) for cPanel and cron setup.
+Keep the web root pointed at `public/`; do not expose the repository root. See [DEPLOY.md](DEPLOY.md) for deployment, cron, update, and troubleshooting details.
 
-## Commands
+## Updating an existing installation
+
+Back up the database and application files before every update. Use the update ZIP through **System → Updates**; do not use the fresh-install ZIP on an existing site. Retain the site's `.env`, database, writable data, and uploads. After an update, run migrations when instructed by the release.
+
+The updater checks file integrity, creates backups, validates packages, and supports restoring previous code backups. See [DEPLOY.md](DEPLOY.md) for the full update procedure.
+
+## Useful commands
 
 ```bash
-php spark migrate           # apply database migrations
-php spark backup:run [keep] # database backup, keeping the last N
-npm install && npm run build:css   # rebuild Tailwind after adding classes
+php spark migrate
+php spark backup:run [keep]
+npm install
+npm run build:css
+composer test
 ```
 
-Cron endpoints (use your cron token, shown in Admin): `its-cron-maintenance`, `its-cron-weekly`, `its-cron-monthly`, `its-cron-device-monitor`.
+Run the CSS build only after changing front-end styles. Tests use the PHPUnit configuration in [phpunit.dist.xml](phpunit.dist.xml); code coverage is opt-in and requires a PHP coverage driver.
 
-## Security notes
+Scheduled tasks use the private cron token configured for the site. Configure maintenance, weekly/monthly reports, and device monitoring in a trusted scheduler; see [DEPLOY.md](DEPLOY.md) for endpoint details.
 
-Set `CI_ENVIRONMENT = production` in `.env` on live servers. Keep `.env`, `writable/` and the cron token private. After manual file changes, record a new integrity baseline in **Updates** before using the updater. See [SECURITY.md](SECURITY.md).
+## Documentation
 
-## Help
-
-Open **Help** inside the app for a searchable guide, or **Features** for a feature overview.
+- [Installation instructions](INSTALL.txt)
+- [Deployment and operations guide](DEPLOY.md)
+- [Security guidance](SECURITY.md)
+- [Release history](RELEASES.md)
 
 ## License
 
